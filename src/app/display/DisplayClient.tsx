@@ -40,12 +40,11 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
             setTimeout(() => { // Failsafe timeout
                 audio.removeEventListener('ended', onEnded);
                 resolve(null);
-            }, 2000);
+            }, 500); // Reduced delay
         });
 
         // 2. Generate and play TTS
         try {
-            // Correctly format the text to be spoken
             const textForSpeech = `Senha ${ticket.ticketNumber}`;
             const { media } = await textToSpeech(textForSpeech);
             if (media && ttsAudioRef.current) {

@@ -50,7 +50,8 @@ const ttsFlow = ai.defineFlow(
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Algenib' }, // A standard voice
+            // Other available voices include: Andromeda, Achernar, Algenib, Cygnus
+            prebuiltVoiceConfig: { voiceName: 'Enceladus' },
           },
         },
       },
