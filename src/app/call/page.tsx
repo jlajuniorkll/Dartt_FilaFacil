@@ -22,7 +22,7 @@ export default async function CallPage() {
             <CardTitle className="font-headline">Fila de Espera</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-96">
+            <ScrollArea className="h-[calc(100vh-16rem)]">
               {pendingTickets.length > 0 ? (
                  <ul className="space-y-2">
                   {pendingTickets.map(ticket => (

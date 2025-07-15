@@ -1,25 +1,28 @@
 'use client';
 
 import type { AppSettings, Ticket } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { callNextTicket, callNextTicketByType, repeatLastCall } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PhoneCall, Repeat } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
 
 export default function CallClient({ settings, initialLastCalled }: { settings: AppSettings; initialLastCalled: Ticket | null }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [lastCalled, setLastCalled] = useState<Ticket | null>(initialLastCalled);
+  const router = useRouter();
 
-  const handleCall = (action: () => Promise<any>) => {
+  const handleAction = (action: () => Promise<any>) => {
     startTransition(async () => {
       const result = await action();
       if (result.success) {
         if (result.ticket) {
           setLastCalled(result.ticket);
-        } else {
+        } else if (action !== repeatLastCall) {
           toast({
             title: 'Fila vazia',
             description: 'Não há senhas para chamar.',
@@ -32,17 +35,18 @@ export default function CallClient({ settings, initialLastCalled }: { settings: 
           variant: 'destructive',
         });
       }
+      router.refresh();
     });
   };
 
-  const handleCallNext = () => handleCall(callNextTicket);
-  const handleCallByType = (buttonId: string) => handleCall(() => callNextTicketByType(buttonId));
+  const handleCallNext = () => handleAction(callNextTicket);
+  const handleCallByType = (buttonId: string) => handleAction(() => callNextTicketByType(buttonId));
   const handleRepeat = () => {
     if (!lastCalled) {
         toast({ title: 'Nenhuma senha para repetir', description: 'Nenhuma senha foi chamada ainda.'});
         return;
     }
-    handleCall(repeatLastCall);
+    handleAction(repeatLastCall);
   }
 
   return (
