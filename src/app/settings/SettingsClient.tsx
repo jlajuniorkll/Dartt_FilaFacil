@@ -91,6 +91,57 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="space-y-8">
+          {/* Counter Configuration */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium font-headline">Configuração de Guichês</h3>
+            <Separator />
+            <FormField
+              control={form.control}
+              name="counterConfiguration"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Modo de chamada do guichê</FormLabel>
+                   <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="grid grid-cols-1 md:grid-cols-3 gap-2"
+                    >
+                      <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
+                        <RadioGroupItem value="none" className="sr-only" />
+                        Não configurar guichês
+                      </Label>
+                      <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
+                        <RadioGroupItem value="random" className="sr-only" />
+                        Guichês Aleatórios
+                      </Label>
+                       <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
+                        <RadioGroupItem value="selectable" className="sr-only" />
+                        Guichês Selecionáveis
+                      </Label>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {counterConfigValue !== 'none' && (
+              <FormField
+                control={form.control}
+                name="totalCounters"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número Total de Guichês</FormLabel>
+                    <FormControl><Input type="number" {...field} min={1} /></FormControl>
+                    <FormDescription>
+                      O número total de guichês de atendimento disponíveis.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+            )}
+          </div>
+
           {/* Button Configuration */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium font-headline">Tipos de Senha</h3>
@@ -187,58 +238,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
               <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Vídeo
             </Button>
           </div>
-
-          {/* Counter Configuration */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium font-headline">Configuração de Guichês</h3>
-            <Separator />
-            <FormField
-              control={form.control}
-              name="counterConfiguration"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Modo de chamada do guichê</FormLabel>
-                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="grid grid-cols-1 md:grid-cols-3 gap-2"
-                    >
-                      <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="none" className="sr-only" />
-                        Não configurar guichês
-                      </Label>
-                      <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="random" className="sr-only" />
-                        Guichês Aleatórios
-                      </Label>
-                       <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="selectable" className="sr-only" />
-                        Guichês Selecionáveis
-                      </Label>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {counterConfigValue !== 'none' && (
-              <FormField
-                control={form.control}
-                name="totalCounters"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número Total de Guichês</FormLabel>
-                    <FormControl><Input type="number" {...field} min={1} /></FormControl>
-                    <FormDescription>
-                      O número total de guichês de atendimento disponíveis.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-            )}
-          </div>
-
+          
           {/* Priority Switch */}
           <div className="space-y-4">
              <h3 className="text-lg font-medium font-headline">Sistema de Prioridade</h3>
