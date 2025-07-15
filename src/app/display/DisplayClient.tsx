@@ -69,35 +69,29 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
         {/* Bottom: Last Called */}
         <div className="flex-grow h-[35%] bg-card rounded-2xl flex flex-col items-center justify-center shadow-2xl">
            <AnimatePresence mode="wait">
-            {status.lastCalled ? (
-              <motion.div
-                key={status.lastCalled.id}
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.5 }}
-                transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
-                className="text-center"
-              >
-                <h1 className="text-2xl md:text-4xl font-headline text-muted-foreground mb-2">Senha Chamada</h1>
-                <p 
-                  className="text-8xl md:text-9xl lg:text-[10rem] font-bold font-mono text-accent tracking-tighter"
-                  style={{ lineHeight: 1 }}
-                >
-                  {status.lastCalled.ticketNumber}
-                </p>
-              </motion.div>
-            ) : (
-                <motion.div
-                    key="no-ticket"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0}}
-                    className="text-center"
-                >
-                    <p className="text-4xl font-headline text-muted-foreground">Aguardando chamada...</p>
-                </motion.div>
-            )}
-            </AnimatePresence>
+            <motion.div
+              key={status.lastCalled ? status.lastCalled.id : 'no-ticket'}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+              className="text-center"
+            >
+              {status.lastCalled ? (
+                <>
+                  <h1 className="text-2xl md:text-4xl font-headline text-muted-foreground mb-2">Senha Chamada</h1>
+                  <p 
+                    className="text-8xl md:text-9xl lg:text-[10rem] font-bold font-mono text-accent tracking-tighter"
+                    style={{ lineHeight: 1 }}
+                  >
+                    {status.lastCalled.ticketNumber}
+                  </p>
+                </>
+              ) : (
+                <p className="text-4xl font-headline text-muted-foreground">Aguardando chamada...</p>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>
