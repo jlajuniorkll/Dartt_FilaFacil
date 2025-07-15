@@ -1,10 +1,12 @@
 'use client'
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Settings, Ticket, Monitor, UserCheck, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useRouter } from 'next/navigation';
 
 const allFeatures = [
   {
@@ -39,6 +41,14 @@ const allFeatures = [
 
 export default function Home() {
   const { role, loading, user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Se não está carregando e não há usuário, redireciona para o login.
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   const features = allFeatures.filter(feature => {
       if(feature.roles.includes('public')) return true;
@@ -48,6 +58,16 @@ export default function Home() {
       return false;
   });
 
+  // Mostra um loader enquanto verifica o estado de autenticação.
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Se o usuário está logado, mostra a página.
   return (
     <>
       <Header />
@@ -60,27 +80,21 @@ export default function Home() {
             Sua solução completa para gerenciamento de filas.
           </p>
         </header>
-        {loading ? (
-            <div className="flex justify-center items-center h-40">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </div>
-        ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {features.map((feature) => (
-                <Link href={feature.href} key={feature.title}>
-                  <Card className="h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                    <CardHeader className="flex flex-col items-center justify-center text-center p-6">
-                      <div className="mb-4 rounded-full bg-primary/10 p-4">
-                        {feature.icon}
-                      </div>
-                      <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
-                      <CardDescription className="mt-2">{feature.description}</CardDescription>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-        )}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature) => (
+            <Link href={feature.href} key={feature.title}>
+              <Card className="h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                <CardHeader className="flex flex-col items-center justify-center text-center p-6">
+                  <div className="mb-4 rounded-full bg-primary/10 p-4">
+                    {feature.icon}
+                  </div>
+                  <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
+                  <CardDescription className="mt-2">{feature.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
     </>
   );
