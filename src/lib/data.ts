@@ -29,6 +29,7 @@ const initialSettings: AppSettings = {
     'https://www.youtube.com/watch?v=3Z1_p7-v7v8',
   ],
   priorityEnabled: true,
+  counterConfiguration: 'none',
 };
 
 // Initialize in-memory store for ticket data
@@ -56,7 +57,9 @@ export async function getSettings(): Promise<AppSettings> {
   try {
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
-      return docSnap.data() as AppSettings;
+      // Merge with initial settings to ensure new fields are present
+      const dbSettings = docSnap.data();
+      return { ...initialSettings, ...dbSettings } as AppSettings;
     } else {
       // Document doesn't exist, create it with initial settings
       await setDoc(settingsDocRef, initialSettings);

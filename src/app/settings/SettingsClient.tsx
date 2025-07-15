@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Trash, PlusCircle, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const settingsSchema = z.object({
   priorityEnabled: z.boolean(),
@@ -30,6 +31,7 @@ const settingsSchema = z.object({
     })
   ),
   youtubeUrls: z.array(z.object({ value: z.string().url('URL inválida') })),
+  counterConfiguration: z.enum(['none', 'random', 'selectable']),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -44,6 +46,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
       ...initialSettings,
       buttons: initialSettings.buttons.map(b => ({...b, priority: Number(b.priority), frequency: Number(b.frequency)})),
       youtubeUrls: initialSettings.youtubeUrls.map(url => ({ value: url })),
+      counterConfiguration: initialSettings.counterConfiguration || 'none',
     },
   });
 
@@ -166,6 +169,63 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
             <Button type="button" variant="outline" onClick={() => appendUrl({ value: '' })}>
               <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Vídeo
             </Button>
+          </div>
+
+          {/* Counter Configuration */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium font-headline">Configuração de Guichês</h3>
+            <Separator />
+            <FormField
+              control={form.control}
+              name="counterConfiguration"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Modo de chamada do guichê</FormLabel>
+                   <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="grid grid-cols-1 md:grid-cols-3 gap-2"
+                    >
+                      <FormItem>
+                        <FormControl>
+                          <RadioGroupItem value="none" id="none" className="sr-only" />
+                        </FormControl>
+                        <Label
+                          htmlFor="none"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          Não configurar guichês
+                        </Label>
+                      </FormItem>
+                      <FormItem>
+                        <FormControl>
+                          <RadioGroupItem value="random" id="random" className="sr-only" />
+                        </FormControl>
+                        <Label
+                          htmlFor="random"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          Guichês Aleatórios
+                        </Label>
+                      </FormItem>
+                      <FormItem>
+                        <FormControl>
+                          <RadioGroupItem value="selectable" id="selectable" className="sr-only" />
+                        </FormControl>
+                        <Label
+                          htmlFor="selectable"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          Guichês Selecionáveis
+                        </Label>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           {/* Priority Switch */}
