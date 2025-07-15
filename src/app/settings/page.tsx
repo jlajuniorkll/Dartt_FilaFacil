@@ -31,6 +31,7 @@ function SettingsPageContent({ settings }: { settings: AppSettings }) {
 function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -38,8 +39,9 @@ function SettingsPage() {
         setLoading(true);
         const data = await getSettings();
         setSettings(data);
-      } catch (error) {
-        console.error("Failed to fetch settings:", error);
+      } catch (err) {
+        console.error("Failed to fetch settings:", err);
+        setError("Não foi possível carregar as configurações.");
       } finally {
         setLoading(false);
       }
@@ -47,12 +49,20 @@ function SettingsPage() {
     fetchSettings();
   }, []);
 
-  if (loading || !settings) {
+  if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (error || !settings) {
+     return (
+       <div className="flex h-screen w-screen items-center justify-center bg-background">
+         <p>{error || 'Ocorreu um erro.'}</p>
+       </div>
+     );
   }
 
   return <SettingsPageContent settings={settings} />;

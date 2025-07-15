@@ -35,8 +35,8 @@ export default function LoginForm() {
     startTransition(async () => {
       const result = await signInWithEmail(data);
       if (result.success) {
-        // Force a full page reload to ensure all states are updated correctly.
         // This is the most robust way to handle post-login redirection.
+        // It forces a full page reload, ensuring all states and cookies are updated correctly.
         window.location.href = '/';
       } else {
         let errorMessage = 'Ocorreu um erro ao tentar fazer login.';

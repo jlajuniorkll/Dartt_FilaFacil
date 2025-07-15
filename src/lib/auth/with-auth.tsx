@@ -41,15 +41,12 @@ export default function withAuth<P extends object>(
     }
 
     // If roles are specified and the user's role is not in the allowed list, show access denied.
-    // This prevents the redirect loop by not changing the URL.
     if (allowedRoles && role && !allowedRoles.includes(role)) {
        return (
-        <div className="flex h-screen w-screen items-center justify-center bg-background p-4">
-          <div className="text-center">
+        <div className="flex h-screen w-screen flex-col items-center justify-center bg-background p-4 text-center">
             <h1 className="text-2xl font-bold font-headline">Acesso Negado</h1>
             <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
             <Button onClick={() => router.push('/')} className="mt-4">Voltar para o Início</Button>
-          </div>
         </div>
       );
     }

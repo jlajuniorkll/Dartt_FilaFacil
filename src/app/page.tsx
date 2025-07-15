@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Ticket, Monitor, UserCheck } from 'lucide-react';
+import { Settings, Ticket, Monitor, UserCheck, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/lib/auth/auth-context';
-import withAuth from '@/lib/auth/with-auth';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const allFeatures = [
   {
@@ -38,12 +39,29 @@ const allFeatures = [
   },
 ];
 
-function HomePage() {
-  const { role, user } = useAuth();
+export default function HomePage() {
+  const { user, role, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If loading is finished and there's still no user, redirect to login.
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
+  // While checking auth state, show a loader
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const features = allFeatures.filter(feature => {
-      if(feature.roles.includes('public')) return true;
-      if(user && role) {
+      if (feature.roles.includes('public')) return true;
+      if (user && role) {
           return feature.roles.includes(role);
       }
       return false;
@@ -80,5 +98,3 @@ function HomePage() {
     </>
   );
 }
-
-export default withAuth(HomePage, ['admin', 'operator']);

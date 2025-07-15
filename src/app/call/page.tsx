@@ -54,6 +54,7 @@ function CallPageContent({ settings, pendingTickets, lastCalled }: { settings: A
 function CallPage() {
   const [data, setData] = React.useState<{ settings: AppSettings; pendingTickets: TicketType[]; lastCalled: TicketType | null; } | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function fetchData() {
@@ -65,9 +66,9 @@ function CallPage() {
           getQueueStatus()
         ]);
         setData({ settings, pendingTickets, lastCalled });
-      } catch (error) {
-        console.error("Failed to fetch call page data:", error);
-        // Optionally, set an error state here to show an error message
+      } catch (err) {
+        console.error("Failed to fetch call page data:", err);
+        setError('Erro ao carregar os dados. Tente novamente mais tarde.');
       } finally {
         setLoading(false);
       }
@@ -83,10 +84,10 @@ function CallPage() {
     );
   }
   
-  if (!data) {
+  if (error || !data) {
      return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">
-         <p>Erro ao carregar os dados. Tente novamente.</p>
+         <p>{error || 'Erro ao carregar os dados. Tente novamente.'}</p>
        </div>
      )
   }
