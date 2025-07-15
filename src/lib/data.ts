@@ -1,5 +1,5 @@
 'use server';
-import type { AppSettings, ButtonConfig, Ticket } from './types';
+import type { AppSettings, ButtonConfig, Ticket, DashboardStats } from './types';
 import { revalidatePath } from 'next/cache';
 import { firestore } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction } from 'firebase/firestore';
@@ -261,4 +261,31 @@ export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, his
 
 export async function getPendingTickets(): Promise<Ticket[]> {
     return Promise.resolve(JSON.parse(JSON.stringify(globalForStore.tickets.filter(t => !t.called))));
+}
+
+// --- Dashboard Data ---
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const settings = await getSettings();
+  const today = new Date().toISOString().split('T')[0];
+
+  const ticketsToday = globalForStore.tickets.filter(t => t.timestamp.startsWith(today));
+  const calledToday = ticketsToday.filter(t => t.called);
+  const waiting = globalForStore.tickets.filter(t => !t.called);
+
+  const ticketsByType = settings.buttons.map(button => {
+    const count = ticketsToday.filter(t => t.type === button.id).length;
+    return {
+      name: button.name,
+      count: count,
+      fill: button.color
+    };
+  });
+
+  return {
+    totalIssued: ticketsToday.length,
+    totalCalled: calledToday.length,
+    waitingCount: waiting.length,
+    ticketsByType,
+  };
 }

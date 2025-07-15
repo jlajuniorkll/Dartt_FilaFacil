@@ -4,12 +4,19 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Ticket, Monitor, UserCheck } from 'lucide-react';
+import { Settings, Ticket, Monitor, UserCheck, LayoutDashboard } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRouter } from 'next/navigation';
 
 const allFeatures = [
+  {
+    title: 'Dashboard',
+    description: 'Visualize métricas e o desempenho da fila.',
+    href: '/dashboard',
+    icon: <LayoutDashboard className="h-10 w-10 text-primary" />,
+    roles: ['admin'],
+  },
   {
     title: 'Configurações',
     description: 'Defina os tipos de senha, vídeos e prioridades.',
@@ -46,12 +53,13 @@ export default function HomePage() {
 
   useEffect(() => {
     // Apenas toma uma decisão depois que a autenticação foi verificada
-    if (!loading && !user) {
-      router.replace('/login');
+    if (!loading) {
+        if (!user) {
+            router.replace('/login');
+        }
     }
   }, [user, loading, router]);
 
-  // Enquanto carrega ou se não houver usuário, não renderiza nada para evitar piscar a tela.
   // O AuthProvider já mostra um loader global, então aqui podemos só esperar.
   if (loading || !user) {
     return null; 
@@ -77,7 +85,7 @@ export default function HomePage() {
             Sua solução completa para gerenciamento de filas.
           </p>
         </header>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {features.map((feature) => (
             <Link href={feature.href} key={feature.title}>
               <Card className="h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">

@@ -29,3 +29,10 @@ export interface AppSettings {
   counterConfiguration: 'none'; // Simplified as per new logic
   totalCounters: number;
 }
+
+export interface DashboardStats {
+  totalIssued: number;
+  totalCalled: number;
+  waitingCount: number;
+  ticketsByType: { name: string; count: number; fill: string; }[];
+}
