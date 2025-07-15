@@ -37,8 +37,10 @@ export default function LoginForm() {
     startTransition(async () => {
       const result = await signInWithEmail(data);
       if (result.success) {
-        router.push('/');
-        router.refresh(); // Ensures the layout re-renders with the new auth state
+        // Use replace to prevent going back to login page
+        router.replace('/'); 
+        // Refresh to re-run middleware and server components with new auth state
+        router.refresh(); 
       } else {
         let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
         if (result.error) {
