@@ -50,7 +50,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
             key={btn.id}
             onClick={() => handleGenerateTicket(btn.id)}
             disabled={isPending}
-            className="flex flex-col items-center justify-center rounded-xl shadow-lg transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-accent"
+            className="flex flex-col items-center justify-center rounded-xl shadow-lg transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-accent h-full"
             style={{
               backgroundColor: btn.color,
               color: btn.textColor,
@@ -59,7 +59,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
             {isPending ? (
               <Loader2 className="h-16 w-16 animate-spin" />
             ) : (
-              <span className="text-5xl font-bold font-headline p-6">{btn.name}</span>
+              <span className="text-3xl sm:text-4xl lg:text-5xl font-bold font-headline p-6 text-center">{btn.name}</span>
             )}
           </button>
         ))}

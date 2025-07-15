@@ -61,8 +61,8 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           const newStatus: QueueStatus = await res.json();
           setStatus(newStatus);
           
-          if (newStatus.lastCalled && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current) {
-            lastCalledTimestamp.current = newStatus.lastCalled.calledAt!;
+          if (newStatus.lastCalled && newStatus.lastCalled.calledAt && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current) {
+            lastCalledTimestamp.current = newStatus.lastCalled.calledAt;
             playSounds(newStatus.lastCalled);
           }
         }
@@ -76,13 +76,13 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   }, []);
 
   return (
-    <div className="flex h-screen w-screen bg-background overflow-hidden">
+    <div className="flex h-screen w-screen bg-background">
       <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto"></audio>
       <audio ref={ttsAudioRef} preload="auto"></audio>
       
       <aside className="w-[30%] h-full bg-card p-6 flex flex-col">
-        <h2 className="text-2xl font-bold font-headline text-center mb-4 text-primary">Últimas Senhas</h2>
-        <div className="flex-grow overflow-hidden">
+        <h2 className="text-2xl font-bold font-headline text-center mb-4 text-primary shrink-0">Últimas Senhas</h2>
+        <div className="flex-grow overflow-y-auto">
           <ul className="space-y-3">
              <AnimatePresence>
                 {status.history.map((ticket, index) => (
@@ -103,12 +103,12 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
         </div>
       </aside>
 
-      <main className="w-[70%] h-full flex flex-col p-6">
-        <div className="flex-grow h-[65%] mb-6">
+      <main className="w-[70%] h-full flex flex-col p-6 gap-6">
+        <div className="h-[60%] w-full">
           <YoutubePlayer videoUrls={status.videos} />
         </div>
 
-        <div className="flex-grow h-[35%] bg-card rounded-2xl flex flex-col items-center justify-center shadow-2xl">
+        <div className="h-[40%] w-full bg-card rounded-2xl flex flex-col items-center justify-center shadow-2xl">
           <div className="text-center">
             {status.lastCalled ? (
               <>
