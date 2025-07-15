@@ -35,6 +35,11 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
         const notificationAudio = notificationAudioRef.current;
         if (notificationAudio) {
             notificationAudio.currentTime = 0;
+            // Browsers require user interaction to play audio. Muting it for the first play is a workaround.
+            // After the first "programmatic" play, subsequent plays should work with sound.
+            if(notificationAudio.muted) {
+                notificationAudio.muted = false;
+            }
             const playPromise = notificationAudio.play();
             if(playPromise !== undefined) {
                await playPromise.catch(e => console.error("Error playing notification sound:", e));
@@ -54,7 +59,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
         const ttsAudio = ttsAudioRef.current;
         if (media && ttsAudio) {
             ttsAudio.src = media;
-            await ttsAudio.play();
+            await ttsAudio.play().catch(e => console.error("Error playing TTS sound:", e));
         }
       } catch (error) {
         console.error("Error with audio playback:", error);
@@ -83,12 +88,23 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
     const intervalId = setInterval(fetchStatus, 3000);
     return () => clearInterval(intervalId);
   }, []);
+  
+  // A simple interaction to allow audio to play automatically.
+  const handleInitialInteraction = () => {
+    if (notificationAudioRef.current && notificationAudioRef.current.muted) {
+      notificationAudioRef.current.muted = false;
+      // Play and immediately pause to "activate" the audio element.
+      notificationAudioRef.current.play().catch(()=>{});
+      notificationAudioRef.current.pause();
+    }
+  };
+
 
   const lastCalled = status.lastCalled;
 
   return (
-    <div className="flex h-screen w-screen bg-background overflow-hidden">
-      <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto"></audio>
+    <div className="flex h-screen w-screen bg-background overflow-hidden" onClick={handleInitialInteraction}>
+      <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto" muted></audio>
       <audio ref={ttsAudioRef} preload="auto"></audio>
       
       <aside className="w-[30%] h-full bg-card p-6 flex flex-col">
@@ -122,34 +138,28 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           <YoutubePlayer videoUrls={status.videos} />
         </div>
 
-        <div className="h-[40%] w-full bg-card rounded-2xl flex flex-col items-center justify-center shadow-2xl">
-          <div className="text-center">
+        <div className="h-[40%] w-full bg-card rounded-2xl flex flex-col items-center justify-center shadow-2xl p-4">
+          <div className="text-center w-full">
             {lastCalled ? (
-              <div className="flex flex-col items-center justify-center">
-                 <motion.p
+              <div className="flex flex-col items-center justify-center w-full">
+                <motion.div
                   key={lastCalled.id + (lastCalled.calledAt || '')}
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
-                  className="text-8xl md:text-9xl lg:text-[10rem] font-bold font-mono text-accent tracking-tighter"
-                  style={{ lineHeight: 1 }}
+                  className="w-full"
                 >
-                  {lastCalled.ticketNumber}
-                </motion.p>
-                {lastCalled.counter && (
-                  <motion.div
-                    key={(lastCalled.id + (lastCalled.calledAt || '')) + '-counter'}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.5 }}
-                    className="mt-4"
-                  >
-                    <h2 className="text-2xl md:text-4xl font-headline text-muted-foreground mb-1">Guichê</h2>
-                    <p className="text-6xl md:text-7xl font-bold font-mono text-primary tracking-tight">
-                        {lastCalled.counter}
+                  <div className="text-center">
+                    <p className="text-7xl md:text-8xl lg:text-9xl font-bold font-mono text-accent tracking-tighter" style={{ lineHeight: 1.1 }}>
+                      {lastCalled.ticketNumber}
                     </p>
-                  </motion.div>
-                )}
+                    {lastCalled.counter && (
+                      <p className="mt-4 text-4xl md:text-5xl lg:text-6xl font-headline text-primary tracking-tight">
+                        Guichê {lastCalled.counter}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
               </div>
             ) : (
               <p className="text-4xl font-headline text-muted-foreground">Aguardando chamada...</p>
