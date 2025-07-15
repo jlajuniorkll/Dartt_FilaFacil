@@ -4,6 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Ticket } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CallPage() {
   const settings = await getSettings();
   const pendingTickets = await getPendingTickets();
