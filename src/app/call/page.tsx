@@ -53,12 +53,12 @@ function CallPageContent({ settings, pendingTickets, lastCalled }: { settings: A
 
 function CallPage() {
   const [data, setData] = React.useState<{ settings: AppSettings; pendingTickets: TicketType[]; lastCalled: TicketType | null; } | null>(null);
-  const [dataLoading, setDataLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const fetchData = async () => {
+    async function fetchData() {
       try {
-        setDataLoading(true);
+        setLoading(true);
         const [settings, pendingTickets, { lastCalled }] = await Promise.all([
           getSettings(),
           getPendingTickets(),
@@ -67,14 +67,15 @@ function CallPage() {
         setData({ settings, pendingTickets, lastCalled });
       } catch (error) {
         console.error("Failed to fetch call page data:", error);
+        // Optionally, set an error state here to show an error message
       } finally {
-        setDataLoading(false);
+        setLoading(false);
       }
-    };
+    }
     fetchData();
   }, []);
 
-  if (dataLoading) {
+  if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -92,5 +93,6 @@ function CallPage() {
 
   return <CallPageContent {...data} />;
 }
+
 
 export default withAuth(CallPage, ['admin', 'operator']);

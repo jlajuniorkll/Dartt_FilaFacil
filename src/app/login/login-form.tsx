@@ -35,24 +35,24 @@ export default function LoginForm() {
     startTransition(async () => {
       const result = await signInWithEmail(data);
       if (result.success) {
-        // Force a full page reload to ensure all states are updated correctly
+        // Force a full page reload to ensure all states are updated correctly.
+        // This is the most robust way to handle post-login redirection.
         window.location.href = '/';
       } else {
-        let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
+        let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
         if (result.error) {
+            // Check for common Firebase auth errors for invalid credentials
             const invalidCredentialCodes = [
               'auth/invalid-credential', 
               'auth/wrong-password', 
               'auth/user-not-found',
               'auth/invalid-email',
-              'auth/invalid-api-key',
-              'auth/api-key-not-valid.-please-pass-a-valid-api-key.'
             ];
             
             if (invalidCredentialCodes.some(code => result.error?.includes(code))) {
                 errorMessage = 'Email ou senha incorretos.';
             } else {
-                errorMessage = 'Ocorreu um erro ao tentar fazer login.';
+                // Log the specific error for debugging but show a generic message
                 console.error("Firebase Auth Error:", result.error);
             }
         }

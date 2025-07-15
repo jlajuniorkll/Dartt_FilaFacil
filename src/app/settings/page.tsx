@@ -33,11 +33,18 @@ function SettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    getSettings().then(data => {
-      setSettings(data);
-      setLoading(false);
-    });
+    async function fetchSettings() {
+      try {
+        setLoading(true);
+        const data = await getSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error("Failed to fetch settings:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSettings();
   }, []);
 
   if (loading || !settings) {
