@@ -49,7 +49,7 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
-export default function SettingsClient({ initialSettings }: { initialSettings: AppSettings }) {
+export default function SettingsClient({ initialSettings, onSettingsChange }: { initialSettings: AppSettings, onSettingsChange: () => void }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isResetting, setIsResetting] = useState(false);
@@ -85,7 +85,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
       const formattedData: AppSettings = {
         ...data,
         youtubeUrls: data.youtubeUrls.map(urlObj => urlObj.value),
-        counterConfiguration: 'none', // Keep a default value
+        counterConfiguration: 'none',
       };
       const result = await updateSettings(formattedData);
       if (result.success) {
@@ -93,6 +93,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
           title: 'Sucesso!',
           description: 'Configurações salvas.',
         });
+        onSettingsChange(); // Refresh parent page
       } else {
         toast({
           title: 'Erro',
@@ -112,6 +113,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
                 title: 'Fila Reiniciada!',
                 description: 'Todas as senhas de hoje foram removidas e os contadores zerados.',
             });
+            onSettingsChange(); // Refresh parent page
         } else {
             toast({
                 title: 'Erro ao Reiniciar',
@@ -310,4 +312,3 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
     </>
   );
 }
-

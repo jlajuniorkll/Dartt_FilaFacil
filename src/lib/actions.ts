@@ -8,7 +8,9 @@ import { revalidatePath } from 'next/cache';
 export async function updateSettings(settings: AppSettings) {
   try {
     await data.updateSettings(settings);
-    revalidatePath('/', 'layout');
+    revalidatePath('/settings', 'page');
+    revalidatePath('/request', 'page');
+    revalidatePath('/call', 'page');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -20,7 +22,6 @@ export async function generateTicket(buttonId: string) {
     const ticket = await data.generateTicket(buttonId);
     revalidatePath('/call', 'page');
     revalidatePath('/dashboard', 'page');
-    revalidatePath('/api/queue/status', 'route');
     return { success: true, ticket };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -32,6 +33,7 @@ export async function callNextTicket(counter: number) {
         const ticket = await data.callNextTicket(counter);
         revalidatePath('/call', 'page');
         revalidatePath('/dashboard', 'page');
+        revalidatePath('/display', 'page');
         revalidatePath('/api/queue/status', 'route');
         return { success: true, ticket };
     } catch (error) {
@@ -44,6 +46,7 @@ export async function callNextTicketByType(buttonId: string, counter: number) {
         const ticket = await data.callNextTicketByType(buttonId, counter);
         revalidatePath('/call', 'page');
         revalidatePath('/dashboard', 'page');
+        revalidatePath('/display', 'page');
         revalidatePath('/api/queue/status', 'route');
         return { success: true, ticket };
     } catch (error) {
@@ -66,9 +69,7 @@ export async function repeatLastCall() {
 export async function resetQueue() {
     try {
         await data.resetQueue();
-        revalidatePath('/call', 'page');
-        revalidatePath('/dashboard', 'page');
-        revalidatePath('/api/queue/status', 'route');
+        revalidatePath('/', 'layout'); // Revalidates all pages
         return { success: true };
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
