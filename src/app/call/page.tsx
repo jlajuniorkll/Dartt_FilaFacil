@@ -54,17 +54,18 @@ function CallPageContent({ settings, pendingTickets, lastCalled }: { settings: A
 }
 
 export default function CallPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const router = useRouter();
   const [data, setData] = React.useState<{ settings: AppSettings; pendingTickets: TicketType[]; lastCalled: TicketType | null; } | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
+    // Se o authLoading terminou e não há usuário, ou se o papel não for permitido
+    if (!authLoading && (!user || !['admin', 'operator'].includes(role || ''))) {
+      router.replace('/home'); // Redireciona para a home se não tiver permissão
     }
-  }, [user, authLoading, router]);
+  }, [user, role, authLoading, router]);
 
   React.useEffect(() => {
     if (user) {
@@ -88,14 +89,27 @@ export default function CallPage() {
     }
   }, [user]);
 
-  if (authLoading || loading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
+  // Não renderiza nada enquanto a autenticação está sendo verificada para evitar piscar a tela
+  if (authLoading) {
+    return null;
   }
   
+  if (!user || !['admin', 'operator'].includes(role || '')) {
+     return (
+       <div className="flex h-screen w-screen items-center justify-center bg-background">
+         <p>Acesso negado.</p>
+       </div>
+     )
+  }
+  
+  if (loading) {
+    return (
+       <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   if (error || !data) {
      return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">

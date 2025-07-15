@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,7 +21,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
@@ -32,38 +32,37 @@ export default function LoginForm() {
     },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    startTransition(async () => {
-      const result = await signInWithEmail(data);
-      if (result.success) {
-        // This is the most robust way to handle post-login redirection.
-        // It forces a full page reload, ensuring all states and cookies are updated correctly.
-        window.location.href = '/';
-      } else {
-        let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
-        if (result.error) {
-            // Check for common Firebase auth errors for invalid credentials
-            const invalidCredentialCodes = [
-              'auth/invalid-credential', 
-              'auth/wrong-password', 
-              'auth/user-not-found',
-              'auth/invalid-email',
-            ];
-            
-            if (invalidCredentialCodes.some(code => result.error?.includes(code))) {
-                errorMessage = 'Email ou senha incorretos.';
-            } else {
-                // Log the specific error for debugging but show a generic message
-                console.error("Firebase Auth Error:", result.error);
-            }
-        }
-        toast({
-          title: 'Erro de Login',
-          description: errorMessage,
-          variant: 'destructive',
-        });
+  const onSubmit = async (data: LoginFormValues) => {
+    setIsPending(true);
+    const result = await signInWithEmail(data);
+
+    if (result.success) {
+      // O redirecionamento força uma recarga completa da página,
+      // garantindo que o AuthProvider leia o novo estado de autenticação.
+      window.location.href = '/';
+    } else {
+      let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
+      if (result.error) {
+          const invalidCredentialCodes = [
+            'auth/invalid-credential', 
+            'auth/wrong-password', 
+            'auth/user-not-found',
+            'auth/invalid-email',
+          ];
+          
+          if (invalidCredentialCodes.some(code => result.error?.includes(code))) {
+              errorMessage = 'Email ou senha incorretos.';
+          } else {
+              console.error("Firebase Auth Error:", result.error);
+          }
       }
-    });
+      toast({
+        title: 'Erro de Login',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setIsPending(false); // Libera o botão em caso de erro.
+    }
   };
 
   return (
@@ -77,7 +76,7 @@ export default function LoginForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="seu@email.com" {...field} />
+                  <Input type="email" placeholder="seu@email.com" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -90,7 +89,7 @@ export default function LoginForm() {
               <FormItem>
                 <FormLabel>Senha</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="********" {...field} />
+                  <Input type="password" placeholder="********" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -99,7 +98,7 @@ export default function LoginForm() {
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? <Loader2 className="animate-spin" /> : 'Entrar'}
+            {isPending ? <><Loader2 className="animate-spin" /> Entrando...</> : 'Entrar'}
           </Button>
         </CardFooter>
       </form>

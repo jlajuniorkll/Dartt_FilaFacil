@@ -4,13 +4,16 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
-import { Loader2 } from 'lucide-react';
 
+// Esta página agora atua como um roteador.
+// O AuthProvider já mostra um loader em tela cheia,
+// então não precisamos de um loader aqui.
 export default function RootPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    // Só redireciona quando o estado de autenticação estiver definido.
     if (!loading) {
       if (user) {
         router.replace('/home');
@@ -20,9 +23,7 @@ export default function RootPage() {
     }
   }, [user, loading, router]);
 
-  return (
-    <div className="flex h-screen w-screen items-center justify-center bg-background">
-      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-    </div>
-  );
+  // Não renderiza nada, pois o AuthProvider já está mostrando um loader
+  // e o redirecionamento será quase instantâneo.
+  return null;
 }

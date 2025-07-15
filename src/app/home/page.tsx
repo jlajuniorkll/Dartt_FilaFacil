@@ -1,11 +1,13 @@
 
 'use client'
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Settings, Ticket, Monitor, UserCheck } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useRouter } from 'next/navigation';
 
 const allFeatures = [
   {
@@ -39,7 +41,19 @@ const allFeatures = [
 ];
 
 export default function HomePage() {
-  const { user, role } = useAuth();
+  const { user, role, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
+  // Não renderiza nada enquanto verifica o usuário para evitar piscar a tela
+  if (loading || !user) {
+    return null; 
+  }
   
   const features = allFeatures.filter(feature => {
       if (feature.roles.includes('public')) return true;

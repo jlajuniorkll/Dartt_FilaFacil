@@ -38,10 +38,8 @@ export default function SettingsPage() {
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user || role !== 'admin') {
+    if (!authLoading && ( !user || role !== 'admin')) {
         router.replace('/home');
-      }
     }
   }, [user, role, authLoading, router]);
 
@@ -63,8 +61,20 @@ export default function SettingsPage() {
     }
   }, [user, role]);
 
-  if (authLoading || loading) {
-    return (
+  if (authLoading) {
+    return null; // AuthProvider está mostrando um loader global
+  }
+  
+  if (!user || role !== 'admin') {
+     return (
+       <div className="flex h-screen w-screen items-center justify-center bg-background">
+         <p>Acesso negado.</p>
+       </div>
+     );
+  }
+
+  if (loading) {
+     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
@@ -74,7 +84,7 @@ export default function SettingsPage() {
   if (error || !settings) {
      return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">
-         <p>{error || 'Acesso negado ou erro ao carregar.'}</p>
+         <p>{error || 'Erro ao carregar.'}</p>
        </div>
      );
   }
