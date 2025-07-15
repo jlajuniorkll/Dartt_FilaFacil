@@ -68,7 +68,8 @@ export default function CallPage() {
   }, [user, role, authLoading, router]);
 
   React.useEffect(() => {
-    if (user) {
+    // Apenas busca os dados se o usuário estiver logado e tiver o papel correto
+    if (user && ['admin', 'operator'].includes(role || '')) {
       async function fetchData() {
         try {
           setLoading(true);
@@ -87,13 +88,15 @@ export default function CallPage() {
       }
       fetchData();
     }
-  }, [user]);
+  }, [user, role]);
 
-  // Não renderiza nada enquanto a autenticação está sendo verificada para evitar piscar a tela
+  // O AuthProvider já mostra um loader global, então não precisamos renderizar nada aqui
+  // enquanto a autenticação está sendo verificada.
   if (authLoading) {
     return null;
   }
   
+  // Se após a verificação o usuário não tiver permissão, renderiza acesso negado.
   if (!user || !['admin', 'operator'].includes(role || '')) {
      return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -102,6 +105,7 @@ export default function CallPage() {
      )
   }
   
+  // Loader para os dados da página
   if (loading) {
     return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">

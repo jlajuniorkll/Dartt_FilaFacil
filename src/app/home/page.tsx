@@ -45,12 +45,15 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Se não estiver carregando e não houver usuário, volta pro login.
+    // Isso protege a rota caso o usuário tente acessá-la diretamente.
     if (!loading && !user) {
       router.replace('/login');
     }
   }, [user, loading, router]);
 
-  // Não renderiza nada enquanto verifica o usuário para evitar piscar a tela
+  // Enquanto carrega ou se não houver usuário, não renderiza nada para evitar piscar a tela.
+  // O AuthProvider já mostra um loader global, então aqui podemos só esperar.
   if (loading || !user) {
     return null; 
   }

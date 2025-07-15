@@ -37,8 +37,8 @@ export default function LoginForm() {
     const result = await signInWithEmail(data);
 
     if (result.success) {
-      // O redirecionamento força uma recarga completa da página,
-      // garantindo que o AuthProvider leia o novo estado de autenticação.
+      // O redirecionamento para a raiz (/) força uma recarga completa,
+      // permitindo que o RootPage (nosso novo roteador) direcione corretamente para /home.
       window.location.href = '/';
     } else {
       let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
@@ -98,7 +98,7 @@ export default function LoginForm() {
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? <><Loader2 className="animate-spin" /> Entrando...</> : 'Entrar'}
+            {isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Entrando...</> : 'Entrar'}
           </Button>
         </CardFooter>
       </form>

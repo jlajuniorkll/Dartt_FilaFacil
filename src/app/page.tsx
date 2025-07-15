@@ -5,15 +5,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 
-// Esta página agora atua como um roteador.
-// O AuthProvider já mostra um loader em tela cheia,
-// então não precisamos de um loader aqui.
+// Esta página agora atua como um roteador central.
+// O AuthProvider já mostra um loader em tela cheia enquanto `loading` é true.
 export default function RootPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // Só redireciona quando o estado de autenticação estiver definido.
+    // Só toma a decisão de redirecionar DEPOIS que o carregamento da autenticação terminar.
     if (!loading) {
       if (user) {
         router.replace('/home');
@@ -23,7 +22,7 @@ export default function RootPage() {
     }
   }, [user, loading, router]);
 
-  // Não renderiza nada, pois o AuthProvider já está mostrando um loader
-  // e o redirecionamento será quase instantâneo.
+  // Não renderiza nada, pois o AuthProvider já está mostrando um loader global
+  // e o redirecionamento será quase instantâneo após o carregamento.
   return null;
 }

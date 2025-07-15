@@ -38,12 +38,14 @@ export default function SettingsPage() {
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
+    // Se o authLoading terminou e o usuário não for admin, redireciona.
     if (!authLoading && ( !user || role !== 'admin')) {
         router.replace('/home');
     }
   }, [user, role, authLoading, router]);
 
   useEffect(() => {
+    // Apenas busca os dados se o usuário for admin.
     if (user && role === 'admin') {
       async function fetchSettings() {
         try {
@@ -61,10 +63,12 @@ export default function SettingsPage() {
     }
   }, [user, role]);
 
+  // AuthProvider já mostra um loader global, então não renderiza nada aqui.
   if (authLoading) {
-    return null; // AuthProvider está mostrando um loader global
+    return null;
   }
   
+  // Se o usuário não for admin, mostra Acesso Negado.
   if (!user || role !== 'admin') {
      return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -73,6 +77,7 @@ export default function SettingsPage() {
      );
   }
 
+  // Loader para o conteúdo da página.
   if (loading) {
      return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
