@@ -1,4 +1,4 @@
-import Link from 'next/list';
+import Link from 'next/link';
 import { Ticket } from 'lucide-react';
 
 export default function Header() {
