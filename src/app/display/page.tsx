@@ -2,6 +2,8 @@ import { getQueueStatus } from '@/lib/data';
 import DisplayClient from './DisplayClient';
 import { Suspense } from 'react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DisplayPage() {
   const initialStatus = await getQueueStatus();
 
