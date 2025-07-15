@@ -33,7 +33,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
             notificationAudio.currentTime = 0;
             const playPromise = notificationAudio.play();
             if(playPromise !== undefined) {
-                playPromise.catch(e => console.error("Error playing notification sound:", e));
+               await playPromise.catch(e => console.error("Error playing notification sound:", e));
             }
             // Wait for notification to finish
             await new Promise(resolve => {
@@ -55,10 +55,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
       } catch (error) {
         console.error("Error with audio playback:", error);
       } finally {
-        // Add a small delay before unlocking to prevent rapid re-triggering
-        setTimeout(() => {
-            isProcessingAudio.current = false;
-        }, 500);
+        isProcessingAudio.current = false;
       }
     };
 
@@ -84,7 +81,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   }, []);
 
   return (
-    <div className="flex h-screen w-screen bg-background">
+    <div className="flex h-screen w-screen bg-background overflow-hidden">
       <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto"></audio>
       <audio ref={ttsAudioRef} preload="auto"></audio>
       
