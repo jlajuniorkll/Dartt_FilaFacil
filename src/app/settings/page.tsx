@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,7 +8,8 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import Header from '@/components/Header';
 import { Loader2 } from 'lucide-react';
 import type { AppSettings } from '@/lib/types';
-import withAuth from '@/lib/auth/with-auth';
+import { useAuth } from '@/lib/auth/auth-context';
+import { useRouter } from 'next/navigation';
 
 function SettingsPageContent({ settings }: { settings: AppSettings }) {
   return (
@@ -28,28 +30,40 @@ function SettingsPageContent({ settings }: { settings: AppSettings }) {
   )
 }
 
-function SettingsPage() {
+export default function SettingsPage() {
+  const { user, role, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    async function fetchSettings() {
-      try {
-        setLoading(true);
-        const data = await getSettings();
-        setSettings(data);
-      } catch (err) {
-        console.error("Failed to fetch settings:", err);
-        setError("Não foi possível carregar as configurações.");
-      } finally {
-        setLoading(false);
+    if (!authLoading) {
+      if (!user || role !== 'admin') {
+        router.replace('/home');
       }
     }
-    fetchSettings();
-  }, []);
+  }, [user, role, authLoading, router]);
 
-  if (loading) {
+  useEffect(() => {
+    if (user && role === 'admin') {
+      async function fetchSettings() {
+        try {
+          setLoading(true);
+          const data = await getSettings();
+          setSettings(data);
+        } catch (err) {
+          console.error("Failed to fetch settings:", err);
+          setError("Não foi possível carregar as configurações.");
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetchSettings();
+    }
+  }, [user, role]);
+
+  if (authLoading || loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -60,12 +74,10 @@ function SettingsPage() {
   if (error || !settings) {
      return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">
-         <p>{error || 'Ocorreu um erro.'}</p>
+         <p>{error || 'Acesso negado ou erro ao carregar.'}</p>
        </div>
      );
   }
 
   return <SettingsPageContent settings={settings} />;
 }
-
-export default withAuth(SettingsPage, ['admin']);

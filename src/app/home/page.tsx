@@ -3,12 +3,9 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Ticket, Monitor, UserCheck, Loader2 } from 'lucide-react';
+import { Settings, Ticket, Monitor, UserCheck } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/lib/auth/auth-context';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import withAuth from '@/lib/auth/with-auth';
 
 const allFeatures = [
   {
@@ -41,8 +38,8 @@ const allFeatures = [
   },
 ];
 
-function HomePage() {
-  const { user, role, loading } = useAuth();
+export default function HomePage() {
+  const { user, role } = useAuth();
   
   const features = allFeatures.filter(feature => {
       if (feature.roles.includes('public')) return true;
@@ -83,6 +80,3 @@ function HomePage() {
     </>
   );
 }
-
-
-export default withAuth(HomePage);
