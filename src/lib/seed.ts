@@ -1,5 +1,5 @@
 // To run this script, use: npx tsx src/lib/seed.ts
-
+import 'dotenv/config'; // Load environment variables from .env file
 import { seedUser } from './auth/actions';
 
 const seed = async () => {
