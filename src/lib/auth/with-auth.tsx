@@ -14,20 +14,10 @@ export default function withAuth<P extends object>(
     const router = useRouter();
 
     useEffect(() => {
-      if (loading) {
-        return; // Wait for the auth state to be determined
-      }
-
-      if (!user) {
+      if (!loading && !user) {
         router.replace('/login');
-        return;
       }
-      
-      if (allowedRoles && role && !allowedRoles.includes(role)) {
-        router.replace('/'); // Redirect to home if role is not allowed
-      }
-
-    }, [user, role, loading, router]);
+    }, [user, loading, router]);
 
     if (loading || !user) {
       return (
@@ -36,9 +26,10 @@ export default function withAuth<P extends object>(
         </div>
       );
     }
-    
-    if (allowedRoles && role && !allowedRoles.includes(role)) {
-       return (
+
+    // After loading, if there's a user, check their role.
+    if (allowedRoles && !allowedRoles.includes(role)) {
+      return (
         <div className="flex h-screen w-screen items-center justify-center bg-background">
           <p>Você não tem permissão para acessar esta página.</p>
         </div>
