@@ -6,12 +6,12 @@ const seed = async () => {
     console.log('Seeding database...');
     
     // IMPORTANT: Replace with the desired admin credentials
-    const adminEmail = 'admin@example.com';
-    const adminPassword = 'password123';
+    const adminEmail = 'adm@proconcaxias.com.br';
+    const adminPassword = 'administrador';
 
     // IMPORTANT: Replace with the desired operator credentials
-    const operatorEmail = 'operator@example.com';
-    const operatorPassword = 'password123';
+    const operatorEmail = 'ope@proconcaxias.com.br';
+    const operatorPassword = 'operador';
 
     try {
         const adminResult = await seedUser(adminEmail, adminPassword, 'admin');

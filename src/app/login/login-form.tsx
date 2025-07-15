@@ -40,9 +40,18 @@ export default function LoginForm() {
         router.push('/');
         router.refresh(); // Ensures the layout re-renders with the new auth state
       } else {
+        let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
+        if (result.error) {
+            if (result.error.includes('auth/invalid-credential') || result.error.includes('auth/wrong-password') || result.error.includes('auth/user-not-found')) {
+                errorMessage = 'Email ou senha incorretos.';
+            } else {
+                errorMessage = 'Ocorreu um erro ao tentar fazer login.';
+                console.error("Firebase Auth Error:", result.error);
+            }
+        }
         toast({
           title: 'Erro de Login',
-          description: result.error || 'Credenciais inválidas. Por favor, tente novamente.',
+          description: errorMessage,
           variant: 'destructive',
         });
       }
