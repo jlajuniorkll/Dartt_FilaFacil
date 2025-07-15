@@ -2,28 +2,15 @@
 'use client';
 
 import * as React from 'react';
-import { getSettings, getPendingTickets, getQueueStatus, resetQueue as resetQueueAction } from '@/lib/data';
+import { getSettings, getPendingTickets, getQueueStatus } from '@/lib/data';
 import CallClient from './CallClient';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Ticket, Loader2, AlertTriangle } from 'lucide-react';
+import { Ticket, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import type { AppSettings, Ticket as TicketType } from '@/lib/types';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 
 function CallPageContent({ 
   settings, 
@@ -50,7 +37,7 @@ function CallPageContent({
               <CardTitle className="font-headline">Fila de Espera</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[calc(100vh-22rem)]">
+              <ScrollArea className="h-full">
                 {pendingTickets.length > 0 ? (
                    <ul className="space-y-2">
                     {pendingTickets.map(ticket => (
