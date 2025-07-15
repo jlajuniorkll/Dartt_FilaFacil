@@ -50,8 +50,8 @@ const ttsFlow = ai.defineFlow(
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            // Other available voices include: Andromeda (Female), Achernar (Male), Algenib (Male), Cygnus (Male), Enceladus (Male)
-            prebuiltVoiceConfig: { voiceName: 'Andromeda' },
+            // Valid voices from error: achernar, achird, algenib, algieba, alnilam, aoede, autonoe, callirrhoe, charon, despina, enceladus, erinome, fenrir, gacrux, iapetus, kore, laomedeia, leda, orus, puck, pulcherrima, rasalgethi, sadachbia, sadaltager, schedar, sulafat, umbriel, vindemiatrix, zephyr, zubenelgenubi
+            prebuiltVoiceConfig: { voiceName: 'Aoede' },
           },
         },
       },
