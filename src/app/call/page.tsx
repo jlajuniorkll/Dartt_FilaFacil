@@ -61,18 +61,16 @@ export default function CallPage() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Apenas toma uma decisão depois que a autenticação foi verificada
     if (!authLoading) {
       if (!user) {
         router.replace('/login');
       } else if (!['admin', 'operator'].includes(role || '')) {
-        router.replace('/home'); // Não tem permissão, volta para a home
+        router.replace('/home'); 
       }
     }
   }, [user, role, authLoading, router]);
 
   React.useEffect(() => {
-    // Apenas busca os dados se o usuário tiver permissão
     if (user && ['admin', 'operator'].includes(role || '')) {
       async function fetchData() {
         try {
@@ -94,23 +92,12 @@ export default function CallPage() {
     }
   }, [user, role]);
 
-  // Enquanto a autenticação está carregando, o AuthProvider já mostra um loader.
-  if (authLoading) {
-    return null;
+  if (authLoading || dataLoading) {
+    return null; // The AuthProvider shows a global loader
   }
   
-  // Se não tem permissão, será redirecionado pelo useEffect. Renderiza null para evitar flash.
   if (!user || !['admin', 'operator'].includes(role || '')) {
-     return null;
-  }
-  
-  // Loader para os dados da página
-  if (dataLoading) {
-    return (
-       <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    )
+     return null; // Will be redirected by useEffect
   }
 
   if (error || !data) {

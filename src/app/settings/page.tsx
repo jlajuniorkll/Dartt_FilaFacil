@@ -31,21 +31,21 @@ function SettingsPageContent({ settings }: { settings: AppSettings }) {
 }
 
 export default function SettingsPage() {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const router = useRouter();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    if (!loading) { // Apenas executa depois da verificação inicial de auth
+    if (!authLoading) {
       if (!user) {
         router.replace('/login');
       } else if (role !== 'admin') {
-        router.replace('/home'); // Redireciona para home se não for admin
+        router.replace('/home');
       }
     }
-  }, [user, role, loading, router]);
+  }, [user, role, authLoading, router]);
 
   useEffect(() => {
     if (user && role === 'admin') {
@@ -65,24 +65,12 @@ export default function SettingsPage() {
     }
   }, [user, role]);
 
-  // Enquanto a autenticação carrega, o AuthProvider já mostra um loader global.
-  if (loading) {
-    return null;
+  if (authLoading || dataLoading) {
+    return null; // The AuthProvider shows a global loader
   }
   
-  // Se o usuário não estiver logado ou não for admin, ele será redirecionado pelo useEffect.
-  // Renderizar null aqui previne qualquer flash de conteúdo indevido.
   if (!user || role !== 'admin') {
-     return null;
-  }
-
-  // Loader para o conteúdo da página.
-  if (dataLoading) {
-     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
+     return null; // Will be redirected by the useEffect
   }
 
   if (error || !settings) {

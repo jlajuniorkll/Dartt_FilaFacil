@@ -1,7 +1,7 @@
+
 'use server';
 
 import {
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
@@ -25,28 +25,11 @@ export async function getUserRole(uid: string): Promise<'admin' | 'operator' | n
   }
 }
 
-export async function signInWithEmail({ email, password }: { email: string; password: string }) {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const idToken = await userCredential.user.getIdToken();
-
-    cookies().set(SESSION_COOKIE_NAME, idToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24, // 24 hours
-      path: '/',
-    });
-
-    return { success: true, error: null };
-  } catch (error: any) {
-    // Return the specific Firebase error code/message
-    return { success: false, error: error.code || error.message };
-  }
-}
-
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
+    // While server-side cookies aren't the primary auth method anymore,
+    // it's good practice to clear them on logout.
     cookies().delete(SESSION_COOKIE_NAME);
     return { success: true };
   } catch (error: any) {
@@ -68,6 +51,7 @@ export async function seedUser(email: string, password: string, role: 'admin' | 
         if(error.code === 'auth/email-already-in-use') {
             return { success: false, error: 'Email already exists.'}
         }
+        console.error('Error seeding user:', error);
         return { success: false, error: error.message };
     }
 }

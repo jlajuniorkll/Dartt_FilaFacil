@@ -5,13 +5,15 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmail } from '@/lib/auth/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardFooter } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido.'),
@@ -23,6 +25,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginForm() {
   const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -34,35 +37,31 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsPending(true);
-    const result = await signInWithEmail(data);
-
-    if (result.success) {
-      // Forçar uma recarga completa para a página home.
-      // Isso garante que o AuthProvider e toda a aplicação sejam
-      // reinicializados com o novo estado de autenticação.
-      window.location.href = '/home';
-    } else {
+    try {
+      await signInWithEmailAndPassword(auth, data.email, data.password);
+      router.push('/home');
+    } catch (error: any) {
       let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
-      if (result.error) {
-          const invalidCredentialCodes = [
-            'auth/invalid-credential', 
-            'auth/wrong-password', 
-            'auth/user-not-found',
-            'auth/invalid-email',
-          ];
-          
-          if (invalidCredentialCodes.some(code => result.error?.includes(code))) {
-              errorMessage = 'Email ou senha incorretos.';
-          } else {
-              console.error("Firebase Auth Error:", result.error);
-          }
+      const invalidCredentialCodes = [
+        'auth/invalid-credential', 
+        'auth/wrong-password', 
+        'auth/user-not-found',
+        'auth/invalid-email',
+      ];
+      
+      if (invalidCredentialCodes.includes(error.code)) {
+          errorMessage = 'Email ou senha incorretos.';
+      } else {
+          console.error("Firebase Auth Error:", error.code, error.message);
       }
+      
       toast({
         title: 'Erro de Login',
         description: errorMessage,
         variant: 'destructive',
       });
-      setIsPending(false); // Libera o botão em caso de erro.
+    } finally {
+      setIsPending(false);
     }
   };
 

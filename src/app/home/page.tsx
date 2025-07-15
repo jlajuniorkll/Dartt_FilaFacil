@@ -45,8 +45,7 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Se não estiver carregando e não houver usuário, volta pro login.
-    // Isso protege a rota caso o usuário tente acessá-la diretamente.
+    // Apenas toma uma decisão depois que a autenticação foi verificada
     if (!loading && !user) {
       router.replace('/login');
     }
