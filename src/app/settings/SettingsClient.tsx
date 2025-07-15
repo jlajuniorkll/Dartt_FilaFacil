@@ -67,7 +67,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
       if (result.success) {
         toast({
           title: 'Sucesso!',
-          description: 'Configurações salvas.',
+          description: 'Configurações salvas no Firebase.',
         });
       } else {
         toast({

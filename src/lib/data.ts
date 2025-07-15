@@ -1,17 +1,22 @@
 'use server';
 import type { AppSettings, ButtonConfig, Ticket } from './types';
 import { revalidatePath } from 'next/cache';
+import { firestore } from './firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-// This is a workaround to simulate a persistent in-memory store in a serverless environment.
-// In a real-world application, you would use a proper database like Firestore or Redis.
+// --- Firestore Document Reference ---
+const settingsDocRef = doc(firestore, 'app/settings');
+
+
+// This is a workaround to simulate a persistent in-memory store for non-settings data.
+// In a real-world application, tickets and queue status should also be in Firestore.
 const globalForStore = globalThis as unknown as {
-  settings: AppSettings;
   tickets: Ticket[];
   sequenceCounters: { [key: string]: number };
   callCounters: { [key: string]: number };
   lastCalled: Ticket | null;
   callHistory: Ticket[];
-  isCalling: boolean; // Add lock state
+  isCalling: boolean;
 };
 
 const initialSettings: AppSettings = {
@@ -26,8 +31,8 @@ const initialSettings: AppSettings = {
   priorityEnabled: true,
 };
 
+// Initialize in-memory store for ticket data
 const store = {
-  settings: globalForStore.settings ?? JSON.parse(JSON.stringify(initialSettings)),
   tickets: globalForStore.tickets ?? [],
   sequenceCounters: globalForStore.sequenceCounters ?? { 'btn-1': 0, 'btn-2': 0 },
   callCounters: globalForStore.callCounters ?? { 'btn-1': 0, 'btn-2': 0 },
@@ -36,8 +41,7 @@ const store = {
   isCalling: globalForStore.isCalling ?? false,
 };
 
-if (process.env.NODE_ENV !== 'production' || !globalForStore.settings) {
-  globalForStore.settings = store.settings;
+if (process.env.NODE_ENV !== 'production' || !globalForStore.tickets) {
   globalForStore.tickets = store.tickets;
   globalForStore.sequenceCounters = store.sequenceCounters;
   globalForStore.callCounters = store.callCounters;
@@ -47,15 +51,28 @@ if (process.env.NODE_ENV !== 'production' || !globalForStore.settings) {
 }
 
 
-// --- Settings Management ---
+// --- Settings Management (Firestore) ---
 export async function getSettings(): Promise<AppSettings> {
-  return Promise.resolve(JSON.parse(JSON.stringify(globalForStore.settings)));
+  try {
+    const docSnap = await getDoc(settingsDocRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as AppSettings;
+    } else {
+      // Document doesn't exist, create it with initial settings
+      await setDoc(settingsDocRef, initialSettings);
+      return initialSettings;
+    }
+  } catch (error) {
+    console.error("Error fetching settings from Firestore:", error);
+    // Fallback to initial settings in case of error
+    return initialSettings;
+  }
 }
 
 export async function updateSettings(newSettings: AppSettings): Promise<AppSettings> {
-  globalForStore.settings = JSON.parse(JSON.stringify(newSettings));
-  // Ensure counters exist for new buttons
-  globalForStore.settings.buttons.forEach(btn => {
+   await setDoc(settingsDocRef, newSettings, { merge: true });
+  // Ensure counters exist for new buttons in the in-memory store
+  newSettings.buttons.forEach(btn => {
     if (!globalForStore.sequenceCounters[btn.id]) {
       globalForStore.sequenceCounters[btn.id] = 0;
     }
@@ -66,7 +83,7 @@ export async function updateSettings(newSettings: AppSettings): Promise<AppSetti
   return getSettings();
 }
 
-// --- Ticket Management ---
+// --- Ticket Management (In-Memory) ---
 
 function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
     const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall.id);
@@ -107,7 +124,8 @@ function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
 }
 
 export async function generateTicket(buttonId: string): Promise<Ticket> {
-  const button = globalForStore.settings.buttons.find(b => b.id === buttonId);
+  const settings = await getSettings();
+  const button = settings.buttons.find(b => b.id === buttonId);
   if (!button) {
     throw new Error('Button configuration not found');
   }
@@ -142,13 +160,14 @@ async function withLock<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function callNextTicket(): Promise<Ticket | null> {
   return withLock(async () => {
+    const settings = await getSettings();
     let ticketToCall: Ticket | undefined;
     
-    if (globalForStore.settings.priorityEnabled) {
+    if (settings.priorityEnabled) {
       const pendingTickets = globalForStore.tickets.filter(t => !t.called);
       if (pendingTickets.length === 0) return null;
 
-      const sortedButtons = [...globalForStore.settings.buttons].sort((a, b) => a.priority - b.priority);
+      const sortedButtons = [...settings.buttons].sort((a, b) => a.priority - b.priority);
 
       let foundTicket = false;
       for (const button of sortedButtons) {
@@ -178,8 +197,8 @@ export async function callNextTicket(): Promise<Ticket | null> {
       
       if(!ticketToCall && pendingTickets.length > 0) {
         ticketToCall = pendingTickets.sort((a, b) => {
-          const priorityA = globalForStore.settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
-          const priorityB = globalForStore.settings.buttons.find(btn => btn.id === b.type)?.priority ?? 99;
+          const priorityA = settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
+          const priorityB = settings.buttons.find(btn => btn.id === b.type)?.priority ?? 99;
           if (priorityA !== priorityB) return priorityA - priorityB;
           return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
         })[0];
@@ -224,10 +243,11 @@ export async function repeatLastCall(): Promise<Ticket | null> {
 }
 
 export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, history: Ticket[], videos: string[] }> {
+  const settings = await getSettings();
   return Promise.resolve({
     lastCalled: globalForStore.lastCalled ? JSON.parse(JSON.stringify(globalForStore.lastCalled)) : null,
     history: JSON.parse(JSON.stringify(globalForStore.callHistory)),
-    videos: globalForStore.settings.youtubeUrls,
+    videos: settings.youtubeUrls,
   });
 }
 
