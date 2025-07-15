@@ -73,4 +73,13 @@ h1, h2, h3, h4, h5, h6 {
   body {
     @apply bg-background text-foreground;
   }
+  /* Style for the selected radio group label */
+  .peer-data-\[state\=checked\]\:border-primary\[\&\:has\(\[data-state\=checked\]\)\] {
+    @apply border-primary;
+  }
+
+  label[data-state='checked'] {
+    @apply border-primary bg-primary/10 text-primary-foreground;
+    color: hsl(var(--primary));
+  }
 }

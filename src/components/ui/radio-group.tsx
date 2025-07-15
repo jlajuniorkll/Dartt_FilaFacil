@@ -24,6 +24,11 @@ const RadioGroupItem = React.forwardRef<
   React.ElementRef<typeof RadioGroupPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item>
 >(({ className, ...props }, ref) => {
+  const label = React.useContext(RadioGroupItemContext)
+  React.useEffect(() => {
+    label?.setChecked(props.checked ?? false)
+  }, [props.checked, label])
+
   return (
     <RadioGroupPrimitive.Item
       ref={ref}
@@ -40,5 +45,13 @@ const RadioGroupItem = React.forwardRef<
   )
 })
 RadioGroupItem.displayName = RadioGroupPrimitive.Item.displayName
+
+type RadioGroupItemContextValue = {
+  checked: boolean
+  setChecked: (checked: boolean) => void
+}
+
+const RadioGroupItemContext =
+  React.createContext<RadioGroupItemContextValue | null>(null)
 
 export { RadioGroup, RadioGroupItem }

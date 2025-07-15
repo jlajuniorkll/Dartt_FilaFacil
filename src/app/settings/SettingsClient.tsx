@@ -187,36 +187,36 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
                       defaultValue={field.value}
                       className="grid grid-cols-1 md:grid-cols-3 gap-2"
                     >
-                      <FormItem>
-                        <FormControl>
-                          <RadioGroupItem value="none" id="none" className="sr-only" />
-                        </FormControl>
+                      <FormItem className="w-full">
                         <Label
                           htmlFor="none"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                         >
+                          <FormControl>
+                            <RadioGroupItem value="none" id="none" className="sr-only" />
+                          </FormControl>
                           Não configurar guichês
                         </Label>
                       </FormItem>
-                      <FormItem>
-                        <FormControl>
-                          <RadioGroupItem value="random" id="random" className="sr-only" />
-                        </FormControl>
-                        <Label
+                      <FormItem className="w-full">
+                         <Label
                           htmlFor="random"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                         >
+                          <FormControl>
+                            <RadioGroupItem value="random" id="random" className="sr-only" />
+                          </FormControl>
                           Guichês Aleatórios
                         </Label>
                       </FormItem>
-                      <FormItem>
-                        <FormControl>
-                          <RadioGroupItem value="selectable" id="selectable" className="sr-only" />
-                        </FormControl>
+                       <FormItem className="w-full">
                         <Label
                           htmlFor="selectable"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                         >
+                           <FormControl>
+                            <RadioGroupItem value="selectable" id="selectable" className="sr-only" />
+                          </FormControl>
                           Guichês Selecionáveis
                         </Label>
                       </FormItem>
