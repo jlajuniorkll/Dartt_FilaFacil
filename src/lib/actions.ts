@@ -2,10 +2,16 @@
 
 import * as data from './data';
 import type { AppSettings } from './types';
+import { revalidatePath } from 'next/cache';
 
 export async function updateSettings(settings: AppSettings) {
   try {
     await data.updateSettings(settings);
+    // Revalidate specific paths that depend on settings
+    revalidatePath('/settings');
+    revalidatePath('/request');
+    revalidatePath('/call');
+    revalidatePath('/display');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };

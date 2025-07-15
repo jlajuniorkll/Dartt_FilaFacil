@@ -43,7 +43,8 @@ export async function updateSettings(newSettings: AppSettings): Promise<AppSetti
       callCounters[btn.id] = 0;
     }
   });
-  revalidatePath('/', 'layout');
+  // This revalidation is now more specific in the server action
+  // revalidatePath('/', 'layout'); 
   return getSettings();
 }
 
