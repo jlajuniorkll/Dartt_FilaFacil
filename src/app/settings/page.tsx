@@ -1,15 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/auth-context';
 import { getSettings } from '@/lib/data';
 import SettingsClient from './SettingsClient';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Header from '@/components/Header';
 import { Loader2 } from 'lucide-react';
 import type { AppSettings } from '@/lib/types';
-
+import withAuth from '@/lib/auth/with-auth';
 
 function SettingsPageContent({ settings }: { settings: AppSettings }) {
   return (
@@ -30,20 +28,17 @@ function SettingsPageContent({ settings }: { settings: AppSettings }) {
   )
 }
 
-export default function SettingsPage() {
-  const { user, role, loading } = useAuth();
-  const router = useRouter();
+function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading) {
-      if (!user || role !== 'admin') {
-        router.push('/login');
-      } else {
-        getSettings().then(setSettings);
-      }
-    }
-  }, [user, role, loading, router]);
+    setLoading(true);
+    getSettings().then(data => {
+      setSettings(data);
+      setLoading(false);
+    });
+  }, []);
 
   if (loading || !settings) {
     return (
@@ -55,3 +50,5 @@ export default function SettingsPage() {
 
   return <SettingsPageContent settings={settings} />;
 }
+
+export default withAuth(SettingsPage, ['admin']);

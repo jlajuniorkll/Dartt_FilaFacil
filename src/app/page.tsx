@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Ticket, Monitor, UserCheck, Loader2 } from 'lucide-react';
+import { Settings, Ticket, Monitor, UserCheck } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/lib/auth/auth-context';
-import { useRouter } from 'next/navigation';
+import withAuth from '@/lib/auth/with-auth';
 
 const allFeatures = [
   {
@@ -39,16 +38,8 @@ const allFeatures = [
   },
 ];
 
-export default function Home() {
-  const { role, loading, user } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    // Se não está carregando e não há usuário, redireciona para o login.
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
+function HomePage() {
+  const { role, user } = useAuth();
 
   const features = allFeatures.filter(feature => {
       if(feature.roles.includes('public')) return true;
@@ -58,16 +49,6 @@ export default function Home() {
       return false;
   });
 
-  // Mostra um loader enquanto verifica o estado de autenticação.
-  if (loading || !user) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Se o usuário está logado, mostra a página.
   return (
     <>
       <Header />
@@ -99,3 +80,5 @@ export default function Home() {
     </>
   );
 }
+
+export default withAuth(HomePage);

@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/auth-context';
+import * as React from 'react';
 import { getSettings, getPendingTickets, getQueueStatus } from '@/lib/data';
 import CallClient from './CallClient';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -10,8 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Ticket, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import type { AppSettings, Ticket as TicketType } from '@/lib/types';
+import withAuth from '@/lib/auth/with-auth';
 
-// Wrapper component to handle data fetching and authentication
 function CallPageContent({ settings, pendingTickets, lastCalled }: { settings: AppSettings; pendingTickets: TicketType[]; lastCalled: TicketType | null; }) {
   return (
     <>
@@ -53,39 +51,30 @@ function CallPageContent({ settings, pendingTickets, lastCalled }: { settings: A
   );
 }
 
-
-// Main page component that handles auth check and data fetching
-export default function CallPage() {
-  const { user, role, loading } = useAuth();
-  const router = useRouter();
+function CallPage() {
   const [data, setData] = React.useState<{ settings: AppSettings; pendingTickets: TicketType[]; lastCalled: TicketType | null; } | null>(null);
   const [dataLoading, setDataLoading] = React.useState(true);
 
-  useEffect(() => {
-    if (!loading) {
-      if (!user || (role !== 'admin' && role !== 'operator')) {
-        router.push('/login');
-      } else {
-        const fetchData = async () => {
-          try {
-            const [settings, pendingTickets, { lastCalled }] = await Promise.all([
-              getSettings(),
-              getPendingTickets(),
-              getQueueStatus()
-            ]);
-            setData({ settings, pendingTickets, lastCalled });
-          } catch (error) {
-            console.error("Failed to fetch call page data:", error);
-          } finally {
-            setDataLoading(false);
-          }
-        };
-        fetchData();
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setDataLoading(true);
+        const [settings, pendingTickets, { lastCalled }] = await Promise.all([
+          getSettings(),
+          getPendingTickets(),
+          getQueueStatus()
+        ]);
+        setData({ settings, pendingTickets, lastCalled });
+      } catch (error) {
+        console.error("Failed to fetch call page data:", error);
+      } finally {
+        setDataLoading(false);
       }
-    }
-  }, [user, role, loading, router]);
+    };
+    fetchData();
+  }, []);
 
-  if (loading || dataLoading) {
+  if (dataLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -104,4 +93,4 @@ export default function CallPage() {
   return <CallPageContent {...data} />;
 }
 
-import * as React from 'react';
+export default withAuth(CallPage, ['admin', 'operator']);
