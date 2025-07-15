@@ -9,6 +9,7 @@ export async function updateSettings(settings: AppSettings) {
     await data.updateSettings(settings);
     // Revalidate all paths that depend on settings
     revalidatePath('/', 'layout');
+    revalidatePath('/request');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -19,6 +20,7 @@ export async function generateTicket(buttonId: string) {
   try {
     const ticket = await data.generateTicket(buttonId);
     revalidatePath('/call'); // Ensures waiting list is updated
+    revalidatePath('/display');
     return { success: true, ticket };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -42,7 +44,7 @@ export async function callNextTicketByType(buttonId: string) {
         revalidatePath('/call');
         revalidatePath('/display');
         return { success: true, ticket };
-    } catch (error) =/src/app/api/queue/status/route.ts
+    } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
 }
