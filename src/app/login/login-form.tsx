@@ -42,7 +42,15 @@ export default function LoginForm() {
       } else {
         let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
         if (result.error) {
-            if (result.error.includes('auth/invalid-credential') || result.error.includes('auth/wrong-password') || result.error.includes('auth/user-not-found')) {
+            // Firebase Auth error codes for invalid credentials
+            const invalidCredentialCodes = [
+              'auth/invalid-credential', 
+              'auth/wrong-password', 
+              'auth/user-not-found',
+              'auth/invalid-email'
+            ];
+            
+            if (invalidCredentialCodes.some(code => result.error?.includes(code))) {
                 errorMessage = 'Email ou senha incorretos.';
             } else {
                 errorMessage = 'Ocorreu um erro ao tentar fazer login.';

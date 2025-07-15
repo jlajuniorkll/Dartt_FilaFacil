@@ -37,9 +37,10 @@ export async function signInWithEmail({ email, password }: { email: string; pass
       path: '/',
     });
 
-    return { success: true };
+    return { success: true, error: null };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    // Return the specific Firebase error code/message
+    return { success: false, error: error.code || error.message };
   }
 }
 
