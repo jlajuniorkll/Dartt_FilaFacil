@@ -45,7 +45,9 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
         // 2. Generate and play TTS
         try {
-            const { media } = await textToSpeech(`Senha ${ticket.ticketNumber}`);
+            // Correctly format the text to be spoken
+            const textForSpeech = `Senha ${ticket.ticketNumber}`;
+            const { media } = await textToSpeech(textForSpeech);
             if (media && ttsAudioRef.current) {
                 ttsAudioRef.current.src = media;
                 await ttsAudioRef.current.play();
