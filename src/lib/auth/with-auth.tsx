@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function withAuth<P extends object>(
   WrappedComponent: ComponentType<P>,
-  allowedRoles?: UserRole[]
+  allowedRoles?: Array<'admin' | 'operator'>
 ) {
   const WithAuthComponent = (props: P) => {
     const { user, role, loading } = useAuth();
@@ -27,15 +27,18 @@ export default function withAuth<P extends object>(
       );
     }
 
-    // After loading, if there's a user, check their role.
-    if (allowedRoles && !allowedRoles.includes(role)) {
-      return (
+    if (allowedRoles && !allowedRoles.includes(role as 'admin' | 'operator')) {
+       return (
         <div className="flex h-screen w-screen items-center justify-center bg-background">
-          <p>Você não tem permissão para acessar esta página.</p>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">Acesso Negado</h1>
+            <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+            <Button onClick={() => router.push('/')} className="mt-4">Voltar para o Início</Button>
+          </div>
         </div>
       );
     }
-
+    
     return <WrappedComponent {...props} />;
   };
 

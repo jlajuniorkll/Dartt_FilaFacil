@@ -81,4 +81,4 @@ function HomePage() {
   );
 }
 
-export default withAuth(HomePage);
+export default withAuth(HomePage, ['admin', 'operator']);
