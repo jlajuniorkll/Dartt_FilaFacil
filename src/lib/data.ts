@@ -25,7 +25,7 @@ const initialSettings: AppSettings = {
 };
 
 const store = {
-  settings: globalForStore.settings ?? initialSettings,
+  settings: globalForStore.settings ?? JSON.parse(JSON.stringify(initialSettings)),
   tickets: globalForStore.tickets ?? [],
   sequenceCounters: globalForStore.sequenceCounters ?? { 'btn-1': 0, 'btn-2': 0 },
   callCounters: globalForStore.callCounters ?? { 'btn-1': 0, 'btn-2': 0 },
@@ -182,7 +182,11 @@ export async function callNextTicketByType(buttonId: string): Promise<Ticket | n
 
 
 export async function repeatLastCall(): Promise<Ticket | null> {
-  return globalForStore.lastCalled ? JSON.parse(JSON.stringify(globalForStore.lastCalled)) : null;
+  // Repeating a call shouldn't change the history, just return the last called ticket.
+  if (globalForStore.lastCalled) {
+    return JSON.parse(JSON.stringify(globalForStore.lastCalled));
+  }
+  return null;
 }
 
 export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, history: Ticket[], videos: string[] }> {
