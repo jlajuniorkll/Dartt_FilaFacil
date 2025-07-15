@@ -4,7 +4,6 @@ import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
 import { signInWithEmail } from '@/lib/auth/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -22,7 +21,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
@@ -37,8 +35,8 @@ export default function LoginForm() {
     startTransition(async () => {
       const result = await signInWithEmail(data);
       if (result.success) {
-        router.replace('/');
-        router.refresh(); 
+        // Force a full page reload to ensure all states are updated correctly
+        window.location.href = '/';
       } else {
         let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
         if (result.error) {
@@ -46,7 +44,9 @@ export default function LoginForm() {
               'auth/invalid-credential', 
               'auth/wrong-password', 
               'auth/user-not-found',
-              'auth/invalid-email'
+              'auth/invalid-email',
+              'auth/invalid-api-key',
+              'auth/api-key-not-valid.-please-pass-a-valid-api-key.'
             ];
             
             if (invalidCredentialCodes.some(code => result.error?.includes(code))) {
