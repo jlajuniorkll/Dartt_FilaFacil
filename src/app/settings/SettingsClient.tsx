@@ -187,30 +187,33 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
                       defaultValue={field.value}
                       className="grid grid-cols-1 md:grid-cols-3 gap-2"
                     >
-                      <FormItem className="w-full">
+                      <FormItem>
                         <Label
                           htmlFor="none"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer data-[state=checked]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                          data-state={field.value === 'none' ? 'checked' : 'unchecked'}
                         >
-                           <RadioGroupItem value="none" id="none" className="sr-only peer" />
+                          <RadioGroupItem value="none" id="none" className="sr-only" />
                           Não configurar guichês
                         </Label>
                       </FormItem>
-                      <FormItem className="w-full">
+                      <FormItem>
                          <Label
                           htmlFor="random"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer data-[state=checked]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                          data-state={field.value === 'random' ? 'checked' : 'unchecked'}
                         >
-                          <RadioGroupItem value="random" id="random" className="sr-only peer" />
+                          <RadioGroupItem value="random" id="random" className="sr-only" />
                           Guichês Aleatórios
                         </Label>
                       </FormItem>
-                       <FormItem className="w-full">
+                       <FormItem>
                         <Label
                           htmlFor="selectable"
-                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer data-[state=checked]:border-primary"
+                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                           data-state={field.value === 'selectable' ? 'checked' : 'unchecked'}
                         >
-                           <RadioGroupItem value="selectable" id="selectable" className="sr-only peer" />
+                           <RadioGroupItem value="selectable" id="selectable" className="sr-only" />
                           Guichês Selecionáveis
                         </Label>
                       </FormItem>
