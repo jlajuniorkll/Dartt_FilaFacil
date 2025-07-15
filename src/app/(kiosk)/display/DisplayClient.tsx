@@ -30,7 +30,12 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
         const notificationAudio = notificationAudioRef.current;
         if (notificationAudio) {
-            notificationAudio.play().catch(e => console.error("Error playing notification sound:", e));
+            notificationAudio.currentTime = 0;
+            const playPromise = notificationAudio.play();
+            if(playPromise !== undefined) {
+                playPromise.catch(e => console.error("Error playing notification sound:", e));
+            }
+            // Wait for notification to finish
             await new Promise(resolve => {
                 const onEnded = () => {
                     notificationAudio.removeEventListener('ended', onEnded);
@@ -50,7 +55,10 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
       } catch (error) {
         console.error("Error with audio playback:", error);
       } finally {
-        isProcessingAudio.current = false;
+        // Add a small delay before unlocking to prevent rapid re-triggering
+        setTimeout(() => {
+            isProcessingAudio.current = false;
+        }, 500);
       }
     };
 

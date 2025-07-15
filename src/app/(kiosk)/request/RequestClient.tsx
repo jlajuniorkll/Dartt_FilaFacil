@@ -50,7 +50,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
             key={btn.id}
             onClick={() => handleGenerateTicket(btn.id)}
             disabled={isPending}
-            className="flex flex-col items-center justify-center rounded-xl shadow-lg transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-accent h-full"
+            className="flex flex-col items-center justify-center rounded-xl shadow-lg transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-accent h-full text-balance"
             style={{
               backgroundColor: btn.color,
               color: btn.textColor,
