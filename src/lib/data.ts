@@ -3,6 +3,7 @@
 import type { AppSettings, Ticket, DashboardStats, DailyQueue } from './types';
 import { firestore } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
+import { revalidatePath } from 'next/cache';
 
 
 // --- Firestore Document References ---
@@ -316,3 +317,5 @@ export async function resetQueue(): Promise<void> {
 
     await batch.commit();
 }
+
+    
