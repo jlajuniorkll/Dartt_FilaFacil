@@ -37,14 +37,11 @@ export default function LoginForm() {
     startTransition(async () => {
       const result = await signInWithEmail(data);
       if (result.success) {
-        // Use replace to prevent going back to login page
-        router.replace('/'); 
-        // Refresh to re-run middleware and server components with new auth state
+        router.replace('/');
         router.refresh(); 
       } else {
         let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
         if (result.error) {
-            // Firebase Auth error codes for invalid credentials
             const invalidCredentialCodes = [
               'auth/invalid-credential', 
               'auth/wrong-password', 
