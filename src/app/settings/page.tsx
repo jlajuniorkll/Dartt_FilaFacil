@@ -31,54 +31,53 @@ function SettingsPageContent({ settings }: { settings: AppSettings }) {
 }
 
 export default function SettingsPage() {
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, role, loading } = useAuth();
   const router = useRouter();
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    // Se o authLoading terminou e o usuário não for admin, redireciona.
-    if (!authLoading && ( !user || role !== 'admin')) {
-        router.replace('/home');
+    if (!loading) { // Apenas executa depois da verificação inicial de auth
+      if (!user) {
+        router.replace('/login');
+      } else if (role !== 'admin') {
+        router.replace('/home'); // Redireciona para home se não for admin
+      }
     }
-  }, [user, role, authLoading, router]);
+  }, [user, role, loading, router]);
 
   useEffect(() => {
-    // Apenas busca os dados se o usuário for admin.
     if (user && role === 'admin') {
       async function fetchSettings() {
         try {
-          setLoading(true);
+          setDataLoading(true);
           const data = await getSettings();
           setSettings(data);
         } catch (err) {
           console.error("Failed to fetch settings:", err);
           setError("Não foi possível carregar as configurações.");
         } finally {
-          setLoading(false);
+          setDataLoading(false);
         }
       }
       fetchSettings();
     }
   }, [user, role]);
 
-  // AuthProvider já mostra um loader global, então não renderiza nada aqui.
-  if (authLoading) {
+  // Enquanto a autenticação carrega, o AuthProvider já mostra um loader global.
+  if (loading) {
     return null;
   }
   
-  // Se o usuário não for admin, mostra Acesso Negado.
+  // Se o usuário não estiver logado ou não for admin, ele será redirecionado pelo useEffect.
+  // Renderizar null aqui previne qualquer flash de conteúdo indevido.
   if (!user || role !== 'admin') {
-     return (
-       <div className="flex h-screen w-screen items-center justify-center bg-background">
-         <p>Acesso negado.</p>
-       </div>
-     );
+     return null;
   }
 
   // Loader para o conteúdo da página.
-  if (loading) {
+  if (dataLoading) {
      return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

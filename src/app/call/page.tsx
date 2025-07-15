@@ -57,22 +57,26 @@ export default function CallPage() {
   const { user, role, loading: authLoading } = useAuth();
   const router = useRouter();
   const [data, setData] = React.useState<{ settings: AppSettings; pendingTickets: TicketType[]; lastCalled: TicketType | null; } | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [dataLoading, setDataLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Se o authLoading terminou e não há usuário, ou se o papel não for permitido
-    if (!authLoading && (!user || !['admin', 'operator'].includes(role || ''))) {
-      router.replace('/home'); // Redireciona para a home se não tiver permissão
+    // Apenas toma uma decisão depois que a autenticação foi verificada
+    if (!authLoading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (!['admin', 'operator'].includes(role || '')) {
+        router.replace('/home'); // Não tem permissão, volta para a home
+      }
     }
   }, [user, role, authLoading, router]);
 
   React.useEffect(() => {
-    // Apenas busca os dados se o usuário estiver logado e tiver o papel correto
+    // Apenas busca os dados se o usuário tiver permissão
     if (user && ['admin', 'operator'].includes(role || '')) {
       async function fetchData() {
         try {
-          setLoading(true);
+          setDataLoading(true);
           const [settings, pendingTickets, { lastCalled }] = await Promise.all([
             getSettings(),
             getPendingTickets(),
@@ -83,30 +87,25 @@ export default function CallPage() {
           console.error("Failed to fetch call page data:", err);
           setError('Erro ao carregar os dados. Tente novamente mais tarde.');
         } finally {
-          setLoading(false);
+          setDataLoading(false);
         }
       }
       fetchData();
     }
   }, [user, role]);
 
-  // O AuthProvider já mostra um loader global, então não precisamos renderizar nada aqui
-  // enquanto a autenticação está sendo verificada.
+  // Enquanto a autenticação está carregando, o AuthProvider já mostra um loader.
   if (authLoading) {
     return null;
   }
   
-  // Se após a verificação o usuário não tiver permissão, renderiza acesso negado.
+  // Se não tem permissão, será redirecionado pelo useEffect. Renderiza null para evitar flash.
   if (!user || !['admin', 'operator'].includes(role || '')) {
-     return (
-       <div className="flex h-screen w-screen items-center justify-center bg-background">
-         <p>Acesso negado.</p>
-       </div>
-     )
+     return null;
   }
   
   // Loader para os dados da página
-  if (loading) {
+  if (dataLoading) {
     return (
        <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

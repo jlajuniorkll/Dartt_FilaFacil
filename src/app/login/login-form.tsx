@@ -37,9 +37,10 @@ export default function LoginForm() {
     const result = await signInWithEmail(data);
 
     if (result.success) {
-      // O redirecionamento para a raiz (/) força uma recarga completa,
-      // permitindo que o RootPage (nosso novo roteador) direcione corretamente para /home.
-      window.location.href = '/';
+      // Forçar uma recarga completa para a página home.
+      // Isso garante que o AuthProvider e toda a aplicação sejam
+      // reinicializados com o novo estado de autenticação.
+      window.location.href = '/home';
     } else {
       let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
       if (result.error) {
