@@ -2,40 +2,45 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const SESSION_COOKIE_NAME = '__session';
 
+// Define quais caminhos são públicos e não exigem autenticação.
+// A página inicial '/' agora é protegida por padrão.
 const PUBLIC_PATHS = ['/login', '/request', '/display'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
 
+  // Verifica se o caminho solicitado é um dos caminhos públicos definidos.
   const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path));
 
-  // If it's a public path, let them through.
+  // Se o caminho for público, permite o acesso sem verificar a autenticação.
   if (isPublicPath) {
     return NextResponse.next();
   }
   
-  // If it's a protected path and there's no session cookie, redirect to login.
+  // Se o caminho for protegido (não público) E não houver cookie de sessão,
+  // redireciona o usuário para a página de login.
   if (!sessionCookie) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    return NextResponse.redirect(loginUrl);
   }
 
-  // If the user has a session cookie and is trying to access a protected route, let them through.
-  // Finer-grained role-based access control will be handled by client-side logic in pages and server-side checks in actions.
+  // Se o usuário tiver um cookie de sessão e estiver acessando uma rota protegida,
+  // permite que a solicitação prossiga. O controle de acesso mais granular (admin vs. operador)
+  // é tratado no lado do cliente com o AuthProvider.
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - notification.mp3 (sound file)
+     * Faz a correspondência de todos os caminhos de solicitação, exceto aqueles que começam com:
+     * - api (rotas de API)
+     * - _next/static (arquivos estáticos)
+     * - _next/image (arquivos de otimização de imagem)
+     * - favicon.ico (arquivo favicon)
+     * - notification.mp3 (arquivo de som)
      */
     '/((?!api|_next/static|_next/image|favicon.ico|notification.mp3).*)',
   ],
