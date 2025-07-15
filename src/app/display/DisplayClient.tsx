@@ -17,35 +17,30 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const notificationAudioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
-  const lastCalledId = useRef<string | null>(initialStatus.lastCalled?.id ?? null);
+  const lastCalledTimestamp = useRef<string | null>(initialStatus.lastCalled?.calledAt ?? null);
+
 
   useEffect(() => {
     const playSounds = async (ticket: Ticket) => {
         setIsProcessingAudio(true);
-        // 1. Play notification sound
         notificationAudioRef.current?.play().catch(e => console.error("Error playing notification sound:", e));
         
-        // Wait for notification sound to finish, with a timeout
         await new Promise(resolve => {
             const audio = notificationAudioRef.current;
-            if (!audio) {
-                resolve(null);
-                return;
-            }
+            if (!audio) return resolve(null);
             const onEnded = () => {
                 audio.removeEventListener('ended', onEnded);
                 resolve(null);
             };
             audio.addEventListener('ended', onEnded);
-            setTimeout(() => { // Failsafe timeout
+            setTimeout(() => { 
                 audio.removeEventListener('ended', onEnded);
                 resolve(null);
-            }, 500); // Reduced delay
+            }, 500);
         });
 
-        // 2. Generate and play TTS
         try {
-            const textForSpeech = `Senha ${ticket.ticketNumber}`;
+            const textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
             const { media } = await textToSpeech(textForSpeech);
             if (media && ttsAudioRef.current) {
                 ttsAudioRef.current.src = media;
@@ -65,8 +60,8 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           const newStatus: QueueStatus = await res.json();
           setStatus(newStatus);
           
-          if (newStatus.lastCalled && newStatus.lastCalled.id !== lastCalledId.current) {
-            lastCalledId.current = newStatus.lastCalled.id;
+          if (newStatus.lastCalled && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current) {
+            lastCalledTimestamp.current = newStatus.lastCalled.calledAt!;
             if (!isProcessingAudio) {
                playSounds(newStatus.lastCalled);
             }
@@ -121,7 +116,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
               <>
                 <h1 className="text-2xl md:text-4xl font-headline text-muted-foreground mb-2">Senha Chamada</h1>
                  <motion.p
-                  key={status.lastCalled.id}
+                  key={status.lastCalled.id + (status.lastCalled.calledAt || '')}
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}

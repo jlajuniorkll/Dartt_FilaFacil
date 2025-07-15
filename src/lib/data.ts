@@ -64,6 +64,34 @@ export async function updateSettings(newSettings: AppSettings): Promise<AppSetti
 
 // --- Ticket Management ---
 
+function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
+    const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall.id);
+    if (!originalTicket) return null;
+
+    // Update state for the called ticket
+    originalTicket.called = true;
+    originalTicket.calledAt = new Date().toISOString(); // Update timestamp to trigger changes
+    originalTicket.isRepeat = isRepeat;
+
+    // Update last called and history
+    globalForStore.lastCalled = JSON.parse(JSON.stringify(originalTicket));
+
+    // Only add to history if it's a new call, not a repeat
+    if (!isRepeat) {
+        // Prevent duplicates in history
+        const historyIndex = globalForStore.callHistory.findIndex(t => t.id === originalTicket.id);
+        if (historyIndex > -1) {
+            globalForStore.callHistory.splice(historyIndex, 1);
+        }
+        globalForStore.callHistory.unshift(JSON.parse(JSON.stringify(originalTicket)));
+        if (globalForStore.callHistory.length > 10) {
+            globalForStore.callHistory.pop();
+        }
+    }
+    
+    return globalForStore.lastCalled;
+}
+
 export async function generateTicket(buttonId: string): Promise<Ticket> {
   const button = globalForStore.settings.buttons.find(b => b.id === buttonId);
   if (!button) {
@@ -94,7 +122,6 @@ export async function callNextTicket(): Promise<Ticket | null> {
 
     const sortedButtons = [...globalForStore.settings.buttons].sort((a, b) => a.priority - b.priority);
 
-    // Check if any priority group *should* be called based on frequency
     let foundTicket = false;
     for (const button of sortedButtons) {
         const callCount = globalForStore.callCounters[button.id] || 0;
@@ -109,7 +136,6 @@ export async function callNextTicket(): Promise<Ticket | null> {
         }
     }
 
-    // If no group was called (e.g., all met their frequency limit for the cycle), reset and call the highest priority available
     if (!foundTicket) {
         Object.keys(globalForStore.callCounters).forEach(key => globalForStore.callCounters[key] = 0);
         for (const button of sortedButtons) {
@@ -122,7 +148,6 @@ export async function callNextTicket(): Promise<Ticket | null> {
         }
     }
     
-    // Fallback to first available if all logic above fails (should not happen if pendingTickets > 0)
     if(!ticketToCall && pendingTickets.length > 0) {
       ticketToCall = pendingTickets.sort((a, b) => {
         const priorityA = globalForStore.settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
@@ -133,26 +158,16 @@ export async function callNextTicket(): Promise<Ticket | null> {
     }
 
   } else {
-    // FIFO
     ticketToCall = globalForStore.tickets
       .filter(t => !t.called)
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
   }
 
   if (ticketToCall) {
-    const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall!.id);
-    if (originalTicket) {
-        originalTicket.called = true;
-        originalTicket.calledAt = new Date().toISOString();
-        globalForStore.lastCalled = originalTicket;
-        globalForStore.callHistory.unshift(originalTicket);
-        if (globalForStore.callHistory.length > 10) {
-          globalForStore.callHistory.pop();
-        }
-    }
+    return markTicketAsCalled(ticketToCall);
   }
 
-  return globalForStore.lastCalled ? JSON.parse(JSON.stringify(globalForStore.lastCalled)) : null;
+  return null;
 }
 
 export async function callNextTicketByType(buttonId: string): Promise<Ticket | null> {
@@ -160,21 +175,8 @@ export async function callNextTicketByType(buttonId: string): Promise<Ticket | n
     .filter(t => !t.called && t.type === buttonId)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
 
-  if (!ticketToCall) {
-    return null; // No ticket of this type to call
-  }
-  
-  // Directly update the state for the found ticket
-  const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall.id);
-  if (originalTicket) {
-      originalTicket.called = true;
-      originalTicket.calledAt = new Date().toISOString();
-      globalForStore.lastCalled = originalTicket;
-      globalForStore.callHistory.unshift(originalTicket);
-      if (globalForStore.callHistory.length > 10) {
-        globalForStore.callHistory.pop();
-      }
-      return JSON.parse(JSON.stringify(originalTicket));
+  if (ticketToCall) {
+      return markTicketAsCalled(ticketToCall);
   }
   
   return null;
@@ -182,9 +184,9 @@ export async function callNextTicketByType(buttonId: string): Promise<Ticket | n
 
 
 export async function repeatLastCall(): Promise<Ticket | null> {
-  // Repeating a call shouldn't change the history, just return the last called ticket.
   if (globalForStore.lastCalled) {
-    return JSON.parse(JSON.stringify(globalForStore.lastCalled));
+    // Mark as repeat and update timestamp to trigger display update
+    return markTicketAsCalled(globalForStore.lastCalled, true);
   }
   return null;
 }

@@ -17,6 +17,7 @@ export interface Ticket {
   called: boolean;
   calledAt?: string;
   displayNumber: number;
+  isRepeat?: boolean;
 }
 
 export interface AppSettings {
