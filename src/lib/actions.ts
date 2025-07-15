@@ -20,8 +20,6 @@ export async function updateSettings(settings: AppSettings) {
 export async function generateTicket(buttonId: string) {
   try {
     const ticket = await data.generateTicket(buttonId);
-    revalidatePath('/call', 'page');
-    revalidatePath('/dashboard', 'page');
     return { success: true, ticket };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -31,10 +29,6 @@ export async function generateTicket(buttonId: string) {
 export async function callNextTicket(counter: number) {
     try {
         const ticket = await data.callNextTicket(counter);
-        revalidatePath('/call', 'page');
-        revalidatePath('/dashboard', 'page');
-        revalidatePath('/display', 'page');
-        revalidatePath('/api/queue/status', 'route');
         return { success: true, ticket };
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -44,10 +38,6 @@ export async function callNextTicket(counter: number) {
 export async function callNextTicketByType(buttonId: string, counter: number) {
     try {
         const ticket = await data.callNextTicketByType(buttonId, counter);
-        revalidatePath('/call', 'page');
-        revalidatePath('/dashboard', 'page');
-        revalidatePath('/display', 'page');
-        revalidatePath('/api/queue/status', 'route');
         return { success: true, ticket };
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -58,8 +48,6 @@ export async function callNextTicketByType(buttonId: string, counter: number) {
 export async function repeatLastCall() {
     try {
         const ticket = await data.repeatLastCall();
-        revalidatePath('/display', 'page');
-        revalidatePath('/api/queue/status', 'route');
         return { success: true, ticket };
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };

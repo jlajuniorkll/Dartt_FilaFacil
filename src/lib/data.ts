@@ -122,6 +122,8 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
       throw new Error("Failed to create ticket within the transaction.");
   }
   
+  revalidatePath('/call', 'page');
+  revalidatePath('/dashboard', 'page');
   return newTicket;
 }
 
@@ -160,6 +162,11 @@ async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefi
         // This is to pass the updated ticket out of the transaction
         ticketToCall = updatedTicketData;
     });
+    
+    revalidatePath('/call', 'page');
+    revalidatePath('/dashboard', 'page');
+    revalidatePath('/display', 'page');
+    revalidatePath('/api/queue/status', 'route');
 
     return ticketToCall;
 }
@@ -167,10 +174,7 @@ async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefi
 export async function callNextTicket(counter: number): Promise<Ticket | null> {
   const settings = await getSettings();
   const todaysQueue = await getTodaysQueue();
-
-  const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), orderBy("timestamp", "asc"));
-  const pendingTicketsSnap = await getDocs(ticketsQuery);
-  const pendingTickets = pendingTicketsSnap.docs.map(d => d.data() as Ticket);
+  const pendingTickets = await getPendingTickets(); // This already gets them sorted
   
   if (pendingTickets.length === 0) return null;
 
@@ -227,12 +231,11 @@ export async function callNextTicket(counter: number): Promise<Ticket | null> {
 }
 
 export async function callNextTicketByType(buttonId: string, counter: number): Promise<Ticket | null> {
-   const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), where("type", "==", buttonId), orderBy("timestamp", "asc"), limit(1));
-   const ticketSnap = await getDocs(ticketsQuery);
+   const pendingTickets = await getPendingTickets();
+   const ticketToCall = pendingTickets.find(t => t.type === buttonId);
    
-   if (ticketSnap.empty) return null;
+   if (!ticketToCall) return null;
    
-   const ticketToCall = ticketSnap.docs[0].data() as Ticket;
    return markTicketAsCalled(ticketToCall, counter);
 }
 
@@ -255,9 +258,12 @@ export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, his
 }
 
 export async function getPendingTickets(): Promise<Ticket[]> {
-    const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), orderBy("timestamp", "asc"));
+    const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false));
     const pendingTicketsSnap = await getDocs(ticketsQuery);
-    return pendingTicketsSnap.docs.map(d => d.data() as Ticket);
+    const tickets = pendingTicketsSnap.docs.map(d => d.data() as Ticket);
+    // Sort in application code instead of query
+    tickets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return tickets;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
