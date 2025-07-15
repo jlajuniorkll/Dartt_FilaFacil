@@ -37,7 +37,7 @@ export default function LoginForm() {
       if (result.success) {
         // This is the most robust way to handle post-login redirection.
         // It forces a full page reload, ensuring all states and cookies are updated correctly.
-        window.location.href = '/';
+        window.location.href = '/home';
       } else {
         let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
         if (result.error) {
