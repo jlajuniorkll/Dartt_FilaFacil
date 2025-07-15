@@ -36,29 +36,6 @@ function CallPageContent({
   lastCalled: TicketType | null;
   refreshData: () => void; 
 }) {
-  const { toast } = useToast();
-  const [isResetting, setIsResetting] = React.useState(false);
-  const router = useRouter();
-
-  const handleResetQueue = async () => {
-    setIsResetting(true);
-    try {
-      await resetQueueAction();
-      toast({
-        title: 'Fila Reiniciada!',
-        description: 'Todas as senhas de hoje foram removidas e os contadores zerados.',
-      });
-      refreshData();
-    } catch (error) {
-      toast({
-        title: 'Erro ao Reiniciar',
-        description: 'Não foi possível zerar a fila.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsResetting(false);
-    }
-  }
 
   return (
     <>
@@ -92,30 +69,6 @@ function CallPageContent({
                   <p className="text-muted-foreground text-center p-8">Nenhuma senha aguardando.</p>
                 )}
               </ScrollArea>
-              <div className="mt-4 pt-4 border-t border-destructive/20">
-                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full" disabled={isResetting}>
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        {isResetting ? 'Zerando...' : 'Zerar Fila Atual'}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação não pode ser desfeita. Isso limpará permanentemente a fila do dia atual.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleResetQueue} disabled={isResetting}>
-                        Sim, zerar a fila
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
             </CardContent>
           </Card>
         </div>
