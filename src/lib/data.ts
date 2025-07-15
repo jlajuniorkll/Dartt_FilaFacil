@@ -43,8 +43,6 @@ export async function updateSettings(newSettings: AppSettings): Promise<AppSetti
       callCounters[btn.id] = 0;
     }
   });
-  // This revalidation is now more specific in the server action
-  // revalidatePath('/', 'layout'); 
   return getSettings();
 }
 
@@ -68,7 +66,6 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
   };
 
   tickets.push(newTicket);
-  revalidatePath('/call');
   return JSON.parse(JSON.stringify(newTicket));
 }
 
@@ -77,33 +74,46 @@ export async function callNextTicket(): Promise<Ticket | null> {
   
   if (settings.priorityEnabled) {
     const pendingTickets = tickets.filter(t => !t.called);
+    if (pendingTickets.length === 0) return null;
+
     const sortedButtons = [...settings.buttons].sort((a, b) => a.priority - b.priority);
 
+    // Check if any priority group *should* be called based on frequency
+    let foundTicket = false;
     for (const button of sortedButtons) {
-        const eligibleTicket = pendingTickets.find(t => t.type === button.id);
-        if (eligibleTicket) {
-          const callCount = callCounters[button.id] || 0;
-          if (callCount < button.frequency) {
-            ticketToCall = eligibleTicket;
-            callCounters[button.id] = callCount + 1;
-            break;
-          }
+        const callCount = callCounters[button.id] || 0;
+        if (callCount < button.frequency) {
+            const eligibleTicket = pendingTickets.find(t => t.type === button.id);
+            if (eligibleTicket) {
+                ticketToCall = eligibleTicket;
+                callCounters[button.id] = callCount + 1;
+                foundTicket = true;
+                break;
+            }
         }
     }
 
-    // If no priority ticket was called, reset counters and call the highest priority
-    if (!ticketToCall && pendingTickets.length > 0) {
+    // If no group was called (e.g., all met their frequency limit for the cycle), reset and call the highest priority available
+    if (!foundTicket) {
         Object.keys(callCounters).forEach(key => callCounters[key] = 0);
-        const highestPriorityButton = sortedButtons[0];
-        ticketToCall = pendingTickets.find(t => t.type === highestPriorityButton.id);
-        if (ticketToCall) {
-          callCounters[highestPriorityButton.id] = 1;
+        for (const button of sortedButtons) {
+            const eligibleTicket = pendingTickets.find(t => t.type === button.id);
+            if (eligibleTicket) {
+                ticketToCall = eligibleTicket;
+                callCounters[button.id] = 1;
+                break;
+            }
         }
     }
     
-    // Fallback to first available if logic fails
-    if(!ticketToCall) {
-      ticketToCall = pendingTickets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
+    // Fallback to first available if all logic above fails (should not happen if pendingTickets > 0)
+    if(!ticketToCall && pendingTickets.length > 0) {
+      ticketToCall = pendingTickets.sort((a, b) => {
+        const priorityA = settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
+        const priorityB = settings.buttons.find(btn => btn.id === b.type)?.priority ?? 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+      })[0];
     }
 
   } else {
@@ -114,17 +124,19 @@ export async function callNextTicket(): Promise<Ticket | null> {
   }
 
   if (ticketToCall) {
-    ticketToCall.called = true;
-    ticketToCall.calledAt = new Date().toISOString();
-    lastCalled = ticketToCall;
-    callHistory.unshift(ticketToCall);
-    if (callHistory.length > 10) {
-      callHistory.pop();
+    // Mark as called *in the main tickets array*
+    const originalTicket = tickets.find(t => t.id === ticketToCall!.id);
+    if (originalTicket) {
+        originalTicket.called = true;
+        originalTicket.calledAt = new Date().toISOString();
+        lastCalled = originalTicket;
+        callHistory.unshift(originalTicket);
+        if (callHistory.length > 10) {
+          callHistory.pop();
+        }
     }
   }
 
-  revalidatePath('/call');
-  revalidatePath('/display');
   return lastCalled ? JSON.parse(JSON.stringify(lastCalled)) : null;
 }
 
@@ -134,25 +146,23 @@ export async function callNextTicketByType(buttonId: string): Promise<Ticket | n
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
 
   if (ticketToCall) {
-    ticketToCall.called = true;
-    ticketToCall.calledAt = new Date().toISOString();
-    lastCalled = ticketToCall;
-    callHistory.unshift(ticketToCall);
-    if (callHistory.length > 10) {
-      callHistory.pop();
+    const originalTicket = tickets.find(t => t.id === ticketToCall!.id);
+     if (originalTicket) {
+        originalTicket.called = true;
+        originalTicket.calledAt = new Date().toISOString();
+        lastCalled = originalTicket;
+        callHistory.unshift(originalTicket);
+        if (callHistory.length > 10) {
+          callHistory.pop();
+        }
     }
   }
 
-  revalidatePath('/call');
-  revalidatePath('/display');
   return lastCalled ? JSON.parse(JSON.stringify(lastCalled)) : null;
 }
 
 
 export async function repeatLastCall(): Promise<Ticket | null> {
-  // This action doesn't change data, just retrieves it.
-  // We can add a "re-called" sound effect on the frontend.
-  revalidatePath('/display'); // To trigger a potential visual effect
   return lastCalled ? JSON.parse(JSON.stringify(lastCalled)) : null;
 }
 
@@ -165,5 +175,5 @@ export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, his
 }
 
 export async function getPendingTickets(): Promise<Ticket[]> {
-    return Promise.resolve(tickets.filter(t => !t.called));
+    return Promise.resolve(JSON.parse(JSON.stringify(tickets.filter(t => !t.called))));
 }
