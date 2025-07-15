@@ -2,7 +2,8 @@
 import type { AppSettings, ButtonConfig, Ticket } from './types';
 import { revalidatePath } from 'next/cache';
 import { firestore } from './firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction } from 'firebase/firestore';
+
 
 // --- Firestore Document Reference ---
 const settingsDocRef = doc(firestore, 'app/settings');
@@ -21,8 +22,8 @@ const globalForStore = globalThis as unknown as {
 
 const initialSettings: AppSettings = {
   buttons: [
-    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, color: '#5DADE2', textColor: '#FFFFFF' },
-    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, color: '#F39C12', textColor: '#FFFFFF' },
+    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, color: '#5DADE2', textColor: '#FFFFFF', associatedCounters: '1' },
+    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, color: '#F39C12', textColor: '#FFFFFF', associatedCounters: '2,3' },
   ],
   youtubeUrls: [
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -30,6 +31,7 @@ const initialSettings: AppSettings = {
   ],
   priorityEnabled: true,
   counterConfiguration: 'none',
+  totalCounters: 5,
 };
 
 // Initialize in-memory store for ticket data

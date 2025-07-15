@@ -6,6 +6,7 @@ export interface ButtonConfig {
   frequency: number;
   color: string;
   textColor: string;
+  associatedCounters?: string;
 }
 
 export interface Ticket {
@@ -18,6 +19,7 @@ export interface Ticket {
   calledAt?: string;
   displayNumber: number;
   isRepeat?: boolean;
+  counter?: number;
 }
 
 export interface AppSettings {
@@ -25,4 +27,5 @@ export interface AppSettings {
   youtubeUrls: string[];
   priorityEnabled: boolean;
   counterConfiguration: 'none' | 'random' | 'selectable';
+  totalCounters: number;
 }

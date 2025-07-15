@@ -25,7 +25,11 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
       isProcessingAudio.current = true;
 
       try {
-        const textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
+        let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
+        if (ticket.counter) {
+          textForSpeech += ` no guichê ${ticket.counter}`;
+        }
+        
         const ttsPromise = textToSpeech(textForSpeech);
 
         const notificationAudio = notificationAudioRef.current;
@@ -80,6 +84,8 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
     return () => clearInterval(intervalId);
   }, []);
 
+  const lastCalled = status.lastCalled;
+
   return (
     <div className="flex h-screen w-screen bg-background overflow-hidden">
       <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto"></audio>
@@ -101,6 +107,9 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
                     className={`p-3 rounded-lg text-center ${index === 0 ? 'bg-muted' : ''}`}
                 >
                     <p className="text-3xl font-mono font-semibold tracking-wide text-muted-foreground">{ticket.ticketNumber}</p>
+                     {ticket.counter && (
+                        <p className="text-lg font-semibold text-primary">Guichê {ticket.counter}</p>
+                    )}
                 </motion.li>
                 ))}
             </AnimatePresence>
@@ -115,20 +124,33 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
         <div className="h-[40%] w-full bg-card rounded-2xl flex flex-col items-center justify-center shadow-2xl">
           <div className="text-center">
-            {status.lastCalled ? (
-              <>
-                <h1 className="text-2xl md:text-4xl font-headline text-muted-foreground mb-2">Senha Chamada</h1>
+            {lastCalled ? (
+              <div className="flex flex-col items-center justify-center">
                  <motion.p
-                  key={status.lastCalled.id + (status.lastCalled.calledAt || '')}
+                  key={lastCalled.id + (lastCalled.calledAt || '')}
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
                   className="text-8xl md:text-9xl lg:text-[10rem] font-bold font-mono text-accent tracking-tighter"
                   style={{ lineHeight: 1 }}
                 >
-                  {status.lastCalled.ticketNumber}
+                  {lastCalled.ticketNumber}
                 </motion.p>
-              </>
+                {lastCalled.counter && (
+                  <motion.div
+                    key={(lastCalled.id + (lastCalled.calledAt || '')) + '-counter'}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="mt-4"
+                  >
+                    <h2 className="text-2xl md:text-4xl font-headline text-muted-foreground mb-1">Guichê</h2>
+                    <p className="text-6xl md:text-7xl font-bold font-mono text-primary tracking-tight">
+                        {lastCalled.counter}
+                    </p>
+                  </motion.div>
+                )}
+              </div>
             ) : (
               <p className="text-4xl font-headline text-muted-foreground">Aguardando chamada...</p>
             )}
