@@ -6,24 +6,48 @@ import { callNextTicket, callNextTicketByType, repeatLastCall } from '@/lib/acti
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PhoneCall, Repeat } from 'lucide-react';
+import { Loader2, PhoneCall, Repeat, MonitorSpeaker } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 export default function CallClient({ settings, initialLastCalled }: { settings: AppSettings; initialLastCalled: Ticket | null }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [lastCalled, setLastCalled] = useState<Ticket | null>(initialLastCalled);
+  const [selectedCounter, setSelectedCounter] = useState<string | undefined>(undefined);
   const router = useRouter();
 
-  const handleAction = (action: () => Promise<any>) => {
+  useEffect(() => {
+    // Try to get the saved counter from local storage on mount
+    const savedCounter = localStorage.getItem('selectedCounter');
+    if (savedCounter && Number(savedCounter) <= settings.totalCounters) {
+      setSelectedCounter(savedCounter);
+    }
+  }, [settings.totalCounters]);
+  
+  const handleCounterChange = (value: string) => {
+    setSelectedCounter(value);
+    localStorage.setItem('selectedCounter', value); // Save to local storage
+  }
+
+  const handleAction = (action: (counter: number) => Promise<any>) => {
+    if (!selectedCounter) {
+        toast({
+            title: 'Selecione um guichê',
+            description: 'Você precisa selecionar um guichê antes de chamar uma senha.',
+            variant: 'destructive'
+        });
+        return;
+    }
+    const counterNumber = parseInt(selectedCounter, 10);
     startTransition(async () => {
-      const result = await action();
+      const result = await action(counterNumber);
       if (result.success) {
         if (result.ticket) {
           setLastCalled(result.ticket);
-        } else if (action !== repeatLastCall) {
-          toast({
+        } else {
+           toast({
             title: 'Fila vazia',
             description: 'Não há senhas para chamar.',
           });
@@ -38,28 +62,82 @@ export default function CallClient({ settings, initialLastCalled }: { settings: 
       router.refresh();
     });
   };
+  
+  const handleActionNoCounter = (action: () => Promise<any>) => {
+     startTransition(async () => {
+      const result = await action();
+      if (result.success) {
+        if (result.ticket) {
+          setLastCalled(result.ticket);
+        }
+      } else {
+        toast({
+          title: 'Erro',
+          description: result.error || 'Não foi possível repetir a chamada.',
+          variant: 'destructive',
+        });
+      }
+      router.refresh();
+    });
+  }
 
   const handleCallNext = () => handleAction(callNextTicket);
-  const handleCallByType = (buttonId: string) => handleAction(() => callNextTicketByType(buttonId));
+  const handleCallByType = (buttonId: string) => {
+     if (!selectedCounter) {
+        toast({
+            title: 'Selecione um guichê',
+            description: 'Você precisa selecionar um guichê antes de chamar uma senha.',
+            variant: 'destructive'
+        });
+        return;
+    }
+    const counterNumber = parseInt(selectedCounter, 10);
+    handleAction(() => callNextTicketByType(buttonId, counterNumber));
+  }
   const handleRepeat = () => {
     if (!lastCalled) {
         toast({ title: 'Nenhuma senha para repetir', description: 'Nenhuma senha foi chamada ainda.'});
         return;
     }
-    handleAction(repeatLastCall);
+    handleActionNoCounter(repeatLastCall);
   }
 
   return (
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Painel de Chamada</CardTitle>
-        <CardDescription>Chame a próxima senha da fila.</CardDescription>
+        <CardDescription>Selecione seu guichê e chame a próxima senha da fila.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+
+        <div className="space-y-2">
+            <Label htmlFor="counter-select">Seu Guichê</Label>
+            <Select 
+              value={selectedCounter} 
+              onValueChange={handleCounterChange}
+              disabled={settings.totalCounters <= 0}
+            >
+                <SelectTrigger id="counter-select" className="w-full md:w-1/2">
+                    <SelectValue placeholder={settings.totalCounters > 0 ? "Selecione o número do seu guichê" : "Nenhum guichê configurado"} />
+                </SelectTrigger>
+                <SelectContent>
+                    {Array.from({ length: settings.totalCounters }, (_, i) => i + 1).map(counterNum => (
+                        <SelectItem key={counterNum} value={String(counterNum)}>
+                            Guichê {counterNum}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+
+
         <div className="flex flex-col items-center justify-center p-8 md:p-12 bg-muted rounded-lg min-h-[200px]">
           <p className="text-sm text-muted-foreground">Última Senha Chamada</p>
           {lastCalled ? (
-            <p className="text-8xl font-bold font-mono text-primary tracking-tight">{lastCalled.ticketNumber}</p>
+            <div className="text-center">
+              <p className="text-8xl font-bold font-mono text-primary tracking-tight">{lastCalled.ticketNumber}</p>
+              {lastCalled.counter && <p className="text-2xl font-semibold text-muted-foreground mt-2">no Guichê {lastCalled.counter}</p>}
+            </div>
           ) : (
             <p className="text-3xl font-semibold text-muted-foreground mt-4">Nenhuma senha chamada</p>
           )}
@@ -71,7 +149,7 @@ export default function CallClient({ settings, initialLastCalled }: { settings: 
               size="lg" 
               className="flex-1 text-lg py-8" 
               onClick={handleCallNext} 
-              disabled={isPending}
+              disabled={isPending || !selectedCounter}
             >
               {isPending ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <PhoneCall className="mr-2 h-6 w-6" />}
               Chamar Próximo
@@ -95,7 +173,7 @@ export default function CallClient({ settings, initialLastCalled }: { settings: 
                 size="lg"
                 className="text-lg py-6"
                 onClick={() => handleCallByType(btn.id)}
-                disabled={isPending}
+                disabled={isPending || !selectedCounter}
                 style={{ backgroundColor: btn.color, color: btn.textColor }}
               >
                 {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PhoneCall className="mr-2 h-5 w-5" />}

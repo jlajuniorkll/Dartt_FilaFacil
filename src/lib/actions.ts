@@ -26,9 +26,9 @@ export async function generateTicket(buttonId: string) {
   }
 }
 
-export async function callNextTicket() {
+export async function callNextTicket(counter: number) {
     try {
-        const ticket = await data.callNextTicket();
+        const ticket = await data.callNextTicket(counter);
         revalidatePath('/call', 'page');
         revalidatePath('/display', 'page');
         revalidatePath('/api/queue/status', 'route');
@@ -38,9 +38,9 @@ export async function callNextTicket() {
     }
 }
 
-export async function callNextTicketByType(buttonId: string) {
+export async function callNextTicketByType(buttonId: string, counter: number) {
     try {
-        const ticket = await data.callNextTicketByType(buttonId);
+        const ticket = await data.callNextTicketByType(buttonId, counter);
         revalidatePath('/call', 'page');
         revalidatePath('/display', 'page');
         revalidatePath('/api/queue/status', 'route');

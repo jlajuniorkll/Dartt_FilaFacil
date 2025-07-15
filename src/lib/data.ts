@@ -22,8 +22,8 @@ const globalForStore = globalThis as unknown as {
 
 const initialSettings: AppSettings = {
   buttons: [
-    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, color: '#5DADE2', textColor: '#FFFFFF', associatedCounters: '1' },
-    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, color: '#F39C12', textColor: '#FFFFFF', associatedCounters: '2,3' },
+    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, color: '#5DADE2', textColor: '#FFFFFF' },
+    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, color: '#F39C12', textColor: '#FFFFFF' },
   ],
   youtubeUrls: [
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -90,7 +90,7 @@ export async function updateSettings(newSettings: AppSettings): Promise<AppSetti
 
 // --- Ticket Management (In-Memory) ---
 
-function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
+function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefined, isRepeat = false) {
     const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall.id);
     if (!originalTicket && !isRepeat) return null; // If not repeating, ticket must exist
 
@@ -99,9 +99,12 @@ function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
     if (isRepeat && globalForStore.lastCalled) {
         // For repeats, we use the lastCalled ticket as the base
         ticketToUpdate = globalForStore.lastCalled;
+        // The counter on repeat should be the one from the original call
+        ticketToUpdate.counter = ticketToUpdate.counter;
     } else if (originalTicket) {
         // For new calls, we use the ticket from the queue
         ticketToUpdate = originalTicket;
+        ticketToUpdate.counter = counter; // Assign the counter
     } else {
         return null;
     }
@@ -163,7 +166,7 @@ async function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 
-export async function callNextTicket(): Promise<Ticket | null> {
+export async function callNextTicket(counter: number): Promise<Ticket | null> {
   return withLock(async () => {
     const settings = await getSettings();
     let ticketToCall: Ticket | undefined;
@@ -216,21 +219,21 @@ export async function callNextTicket(): Promise<Ticket | null> {
     }
 
     if (ticketToCall) {
-      return markTicketAsCalled(ticketToCall);
+      return markTicketAsCalled(ticketToCall, counter);
     }
 
     return null;
   });
 }
 
-export async function callNextTicketByType(buttonId: string): Promise<Ticket | null> {
+export async function callNextTicketByType(buttonId: string, counter: number): Promise<Ticket | null> {
  return withLock(async () => {
     const ticketToCall = globalForStore.tickets
       .filter(t => !t.called && t.type === buttonId)
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
 
     if (ticketToCall) {
-        return markTicketAsCalled(ticketToCall);
+        return markTicketAsCalled(ticketToCall, counter);
     }
     
     return null;
@@ -240,8 +243,8 @@ export async function callNextTicketByType(buttonId: string): Promise<Ticket | n
 export async function repeatLastCall(): Promise<Ticket | null> {
   return withLock(async () => {
     if (globalForStore.lastCalled) {
-      // Pass the last called ticket directly
-      return markTicketAsCalled(globalForStore.lastCalled, true);
+      // The counter is already on the lastCalled object.
+      return markTicketAsCalled(globalForStore.lastCalled, undefined, true);
     }
     return null;
   });

@@ -26,6 +26,6 @@ export interface AppSettings {
   buttons: ButtonConfig[];
   youtubeUrls: string[];
   priorityEnabled: boolean;
-  counterConfiguration: 'none' | 'random' | 'selectable';
+  counterConfiguration: 'none'; // Simplified as per new logic
   totalCounters: number;
 }

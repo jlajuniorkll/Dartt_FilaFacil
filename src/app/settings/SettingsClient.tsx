@@ -15,7 +15,6 @@ import { Separator } from '@/components/ui/separator';
 import { Trash, PlusCircle, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const settingsSchema = z.object({
   priorityEnabled: z.boolean(),
@@ -28,11 +27,10 @@ const settingsSchema = z.object({
       frequency: z.coerce.number().min(1, 'Frequência deve ser no mínimo 1'),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
       textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
-      associatedCounters: z.string().regex(/^[0-9, ]*$/, 'Apenas números, vírgulas e espaços são permitidos.').optional(),
+      associatedCounters: z.string().optional(),
     })
   ),
   youtubeUrls: z.array(z.object({ value: z.string().url('URL inválida') })),
-  counterConfiguration: z.enum(['none', 'random', 'selectable']),
   totalCounters: z.coerce.number().min(0, 'O número de guichês não pode ser negativo.'),
 });
 
@@ -48,7 +46,6 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
       ...initialSettings,
       buttons: initialSettings.buttons.map(b => ({...b, priority: Number(b.priority), frequency: Number(b.frequency), associatedCounters: b.associatedCounters || ''})),
       youtubeUrls: initialSettings.youtubeUrls.map(url => ({ value: url })),
-      counterConfiguration: initialSettings.counterConfiguration || 'none',
       totalCounters: initialSettings.totalCounters || 0,
     },
   });
@@ -63,13 +60,12 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
     name: 'youtubeUrls',
   });
   
-  const counterConfigValue = form.watch('counterConfiguration');
-
   const onSubmit = (data: SettingsFormValues) => {
     startTransition(async () => {
       const formattedData: AppSettings = {
         ...data,
         youtubeUrls: data.youtubeUrls.map(urlObj => urlObj.value),
+        counterConfiguration: 'none', // Keep a default value
       };
       const result = await updateSettings(formattedData);
       if (result.success) {
@@ -97,49 +93,17 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
             <Separator />
             <FormField
               control={form.control}
-              name="counterConfiguration"
+              name="totalCounters"
               render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Modo de chamada do guichê</FormLabel>
-                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="grid grid-cols-1 md:grid-cols-3 gap-2"
-                    >
-                      <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="none" className="sr-only" />
-                        Não configurar guichês
-                      </Label>
-                      <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="random" className="sr-only" />
-                        Guichês Aleatórios
-                      </Label>
-                       <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="selectable" className="sr-only" />
-                        Guichês Selecionáveis
-                      </Label>
-                    </RadioGroup>
-                  </FormControl>
+                <FormItem>
+                  <FormLabel>Número Total de Guichês</FormLabel>
+                  <FormControl><Input type="number" {...field} min={0} /></FormControl>
+                  <FormDescription>
+                    O número total de guichês de atendimento disponíveis. Isso será usado na tela de chamada.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-            {counterConfigValue !== 'none' && (
-              <FormField
-                control={form.control}
-                name="totalCounters"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número Total de Guichês</FormLabel>
-                    <FormControl><Input type="number" {...field} min={1} /></FormControl>
-                    <FormDescription>
-                      O número total de guichês de atendimento disponíveis.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-            )}
+              )} />
           </div>
 
           {/* Button Configuration */}
@@ -193,18 +157,6 @@ export default function SettingsClient({ initialSettings }: { initialSettings: A
                       <FormMessage />
                     </FormItem>
                   )} />
-                   {counterConfigValue === 'selectable' && (
-                     <FormField control={form.control} name={`buttons.${index}.associatedCounters`} render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Guichês Associados</FormLabel>
-                        <FormControl><Input {...field} placeholder="Ex: 1, 2, 5" /></FormControl>
-                        <FormDescription>
-                          Digite os números dos guichês que podem chamar este tipo de senha, separados por vírgula.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
                 </div>
                 <Button type="button" variant="destructive" size="sm" onClick={() => removeButton(index)}>
                   <Trash className="mr-2 h-4 w-4" /> Remover Tipo
