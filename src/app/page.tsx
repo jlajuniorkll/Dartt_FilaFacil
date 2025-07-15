@@ -1,36 +1,53 @@
+'use client'
+
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Ticket, Monitor, UserCheck } from 'lucide-react';
+import { Settings, Ticket, Monitor, UserCheck, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
+import { useAuth } from '@/lib/auth/auth-context';
 
-const features = [
+const allFeatures = [
   {
     title: 'Configurações',
     description: 'Defina os tipos de senha, vídeos e prioridades.',
     href: '/settings',
     icon: <Settings className="h-10 w-10 text-primary" />,
+    roles: ['admin'],
   },
   {
     title: 'Solicitar Senha',
     description: 'Tela para clientes retirarem uma nova senha.',
     href: '/request',
     icon: <Ticket className="h-10 w-10 text-primary" />,
+    roles: ['public'],
   },
   {
     title: 'Chamar Senha',
     description: 'Tela para operadores chamarem a próxima senha.',
     href: '/call',
     icon: <UserCheck className="h-10 w-10 text-primary" />,
+    roles: ['admin', 'operator'],
   },
   {
     title: 'Painel de Exibição',
     description: 'Painel público que exibe as senhas chamadas.',
     href: '/display',
     icon: <Monitor className="h-10 w-10 text-primary" />,
+    roles: ['public', 'admin', 'operator'],
   },
 ];
 
 export default function Home() {
+  const { role, loading, user } = useAuth();
+
+  const features = allFeatures.filter(feature => {
+      if(feature.roles.includes('public')) return true;
+      if(user && role) {
+          return feature.roles.includes(role);
+      }
+      return false;
+  });
+
   return (
     <>
       <Header />
@@ -43,21 +60,27 @@ export default function Home() {
             Sua solução completa para gerenciamento de filas.
           </p>
         </header>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((feature) => (
-            <Link href={feature.href} key={feature.title}>
-              <Card className="h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                <CardHeader className="flex flex-col items-center justify-center text-center p-6">
-                  <div className="mb-4 rounded-full bg-primary/10 p-4">
-                    {feature.icon}
-                  </div>
-                  <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
-                  <CardDescription className="mt-2">{feature.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        {loading ? (
+            <div className="flex justify-center items-center h-40">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+        ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature) => (
+                <Link href={feature.href} key={feature.title}>
+                  <Card className="h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                    <CardHeader className="flex flex-col items-center justify-center text-center p-6">
+                      <div className="mb-4 rounded-full bg-primary/10 p-4">
+                        {feature.icon}
+                      </div>
+                      <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
+                      <CardDescription className="mt-2">{feature.description}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+        )}
       </div>
     </>
   );
