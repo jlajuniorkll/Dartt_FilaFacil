@@ -14,43 +14,44 @@ interface QueueStatus {
 
 export default function DisplayClient({ initialStatus }: { initialStatus: QueueStatus }) {
   const [status, setStatus] = useState<QueueStatus>(initialStatus);
-  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const notificationAudioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
   const lastCalledTimestamp = useRef<string | null>(initialStatus.lastCalled?.calledAt ?? null);
-
+  const isProcessingAudio = useRef(false);
 
   useEffect(() => {
     const playSounds = async (ticket: Ticket) => {
-        setIsProcessingAudio(true);
-        notificationAudioRef.current?.play().catch(e => console.error("Error playing notification sound:", e));
-        
-        await new Promise(resolve => {
-            const audio = notificationAudioRef.current;
-            if (!audio) return resolve(null);
-            const onEnded = () => {
-                audio.removeEventListener('ended', onEnded);
-                resolve(null);
-            };
-            audio.addEventListener('ended', onEnded);
-            setTimeout(() => { 
-                audio.removeEventListener('ended', onEnded);
-                resolve(null);
-            }, 500);
-        });
+      if (isProcessingAudio.current) return;
+      isProcessingAudio.current = true;
 
-        try {
-            const textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
-            const { media } = await textToSpeech(textForSpeech);
-            if (media && ttsAudioRef.current) {
-                ttsAudioRef.current.src = media;
-                await ttsAudioRef.current.play();
-            }
-        } catch (error) {
-            console.error("Error with TTS:", error);
-        } finally {
-            setIsProcessingAudio(false);
+      try {
+        const textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
+        const ttsPromise = textToSpeech(textForSpeech);
+
+        const notificationAudio = notificationAudioRef.current;
+        if (notificationAudio) {
+            notificationAudio.play().catch(e => console.error("Error playing notification sound:", e));
+            await new Promise(resolve => {
+                const onEnded = () => {
+                    notificationAudio.removeEventListener('ended', onEnded);
+                    resolve(null);
+                };
+                notificationAudio.addEventListener('ended', onEnded);
+            });
         }
+        
+        const { media } = await ttsPromise;
+
+        const ttsAudio = ttsAudioRef.current;
+        if (media && ttsAudio) {
+            ttsAudio.src = media;
+            await ttsAudio.play();
+        }
+      } catch (error) {
+        console.error("Error with audio playback:", error);
+      } finally {
+        isProcessingAudio.current = false;
+      }
     };
 
     const fetchStatus = async () => {
@@ -62,9 +63,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           
           if (newStatus.lastCalled && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current) {
             lastCalledTimestamp.current = newStatus.lastCalled.calledAt!;
-            if (!isProcessingAudio) {
-               playSounds(newStatus.lastCalled);
-            }
+            playSounds(newStatus.lastCalled);
           }
         }
       } catch (error) {
@@ -73,9 +72,8 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
     };
 
     const intervalId = setInterval(fetchStatus, 3000);
-
     return () => clearInterval(intervalId);
-  }, [isProcessingAudio]);
+  }, []);
 
   return (
     <div className="flex h-screen w-screen bg-background overflow-hidden">
