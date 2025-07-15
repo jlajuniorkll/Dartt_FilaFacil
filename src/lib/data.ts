@@ -1,3 +1,4 @@
+'use server';
 import type { AppSettings, ButtonConfig, Ticket } from './types';
 import { revalidatePath } from 'next/cache';
 
@@ -10,6 +11,7 @@ const globalForStore = globalThis as unknown as {
   callCounters: { [key: string]: number };
   lastCalled: Ticket | null;
   callHistory: Ticket[];
+  isCalling: boolean; // Add lock state
 };
 
 const initialSettings: AppSettings = {
@@ -31,6 +33,7 @@ const store = {
   callCounters: globalForStore.callCounters ?? { 'btn-1': 0, 'btn-2': 0 },
   lastCalled: globalForStore.lastCalled ?? null,
   callHistory: globalForStore.callHistory ?? [],
+  isCalling: globalForStore.isCalling ?? false,
 };
 
 if (process.env.NODE_ENV !== 'production' || !globalForStore.settings) {
@@ -40,6 +43,7 @@ if (process.env.NODE_ENV !== 'production' || !globalForStore.settings) {
   globalForStore.callCounters = store.callCounters;
   globalForStore.lastCalled = store.lastCalled;
   globalForStore.callHistory = store.callHistory;
+  globalForStore.isCalling = store.isCalling;
 }
 
 
@@ -70,15 +74,12 @@ function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
 
     // Update state for the called ticket
     originalTicket.called = true;
-    originalTicket.calledAt = new Date().toISOString(); // Update timestamp to trigger changes
+    originalTicket.calledAt = new Date().toISOString();
     originalTicket.isRepeat = isRepeat;
 
-    // Update last called and history
     globalForStore.lastCalled = JSON.parse(JSON.stringify(originalTicket));
 
-    // Only add to history if it's a new call, not a repeat
     if (!isRepeat) {
-        // Prevent duplicates in history
         const historyIndex = globalForStore.callHistory.findIndex(t => t.id === originalTicket.id);
         if (historyIndex > -1) {
             globalForStore.callHistory.splice(historyIndex, 1);
@@ -113,82 +114,99 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
   return JSON.parse(JSON.stringify(newTicket));
 }
 
+async function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (globalForStore.isCalling) {
+    throw new Error('Uma chamada já está em andamento. Por favor, aguarde.');
+  }
+  globalForStore.isCalling = true;
+  try {
+    return await fn();
+  } finally {
+    globalForStore.isCalling = false;
+  }
+}
+
+
 export async function callNextTicket(): Promise<Ticket | null> {
-  let ticketToCall: Ticket | undefined;
-  
-  if (globalForStore.settings.priorityEnabled) {
-    const pendingTickets = globalForStore.tickets.filter(t => !t.called);
-    if (pendingTickets.length === 0) return null;
-
-    const sortedButtons = [...globalForStore.settings.buttons].sort((a, b) => a.priority - b.priority);
-
-    let foundTicket = false;
-    for (const button of sortedButtons) {
-        const callCount = globalForStore.callCounters[button.id] || 0;
-        if (callCount < button.frequency) {
-            const eligibleTicket = pendingTickets.find(t => t.type === button.id);
-            if (eligibleTicket) {
-                ticketToCall = eligibleTicket;
-                globalForStore.callCounters[button.id] = callCount + 1;
-                foundTicket = true;
-                break;
-            }
-        }
-    }
-
-    if (!foundTicket) {
-        Object.keys(globalForStore.callCounters).forEach(key => globalForStore.callCounters[key] = 0);
-        for (const button of sortedButtons) {
-            const eligibleTicket = pendingTickets.find(t => t.type === button.id);
-            if (eligibleTicket) {
-                ticketToCall = eligibleTicket;
-                globalForStore.callCounters[button.id] = 1;
-                break;
-            }
-        }
-    }
+  return withLock(async () => {
+    let ticketToCall: Ticket | undefined;
     
-    if(!ticketToCall && pendingTickets.length > 0) {
-      ticketToCall = pendingTickets.sort((a, b) => {
-        const priorityA = globalForStore.settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
-        const priorityB = globalForStore.settings.buttons.find(btn => btn.id === b.type)?.priority ?? 99;
-        if (priorityA !== priorityB) return priorityA - priorityB;
-        return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-      })[0];
+    if (globalForStore.settings.priorityEnabled) {
+      const pendingTickets = globalForStore.tickets.filter(t => !t.called);
+      if (pendingTickets.length === 0) return null;
+
+      const sortedButtons = [...globalForStore.settings.buttons].sort((a, b) => a.priority - b.priority);
+
+      let foundTicket = false;
+      for (const button of sortedButtons) {
+          const callCount = globalForStore.callCounters[button.id] || 0;
+          if (callCount < button.frequency) {
+              const eligibleTicket = pendingTickets.find(t => t.type === button.id);
+              if (eligibleTicket) {
+                  ticketToCall = eligibleTicket;
+                  globalForStore.callCounters[button.id] = callCount + 1;
+                  foundTicket = true;
+                  break;
+              }
+          }
+      }
+
+      if (!foundTicket) {
+          Object.keys(globalForStore.callCounters).forEach(key => globalForStore.callCounters[key] = 0);
+          for (const button of sortedButtons) {
+              const eligibleTicket = pendingTickets.find(t => t.type === button.id);
+              if (eligibleTicket) {
+                  ticketToCall = eligibleTicket;
+                  globalForStore.callCounters[button.id] = 1;
+                  break;
+              }
+          }
+      }
+      
+      if(!ticketToCall && pendingTickets.length > 0) {
+        ticketToCall = pendingTickets.sort((a, b) => {
+          const priorityA = globalForStore.settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
+          const priorityB = globalForStore.settings.buttons.find(btn => btn.id === b.type)?.priority ?? 99;
+          if (priorityA !== priorityB) return priorityA - priorityB;
+          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        })[0];
+      }
+
+    } else {
+      ticketToCall = globalForStore.tickets
+        .filter(t => !t.called)
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
     }
 
-  } else {
-    ticketToCall = globalForStore.tickets
-      .filter(t => !t.called)
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
-  }
+    if (ticketToCall) {
+      return markTicketAsCalled(ticketToCall);
+    }
 
-  if (ticketToCall) {
-    return markTicketAsCalled(ticketToCall);
-  }
-
-  return null;
+    return null;
+  });
 }
 
 export async function callNextTicketByType(buttonId: string): Promise<Ticket | null> {
-  const ticketToCall = globalForStore.tickets
-    .filter(t => !t.called && t.type === buttonId)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
+ return withLock(async () => {
+    const ticketToCall = globalForStore.tickets
+      .filter(t => !t.called && t.type === buttonId)
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
 
-  if (ticketToCall) {
-      return markTicketAsCalled(ticketToCall);
-  }
-  
-  return null;
+    if (ticketToCall) {
+        return markTicketAsCalled(ticketToCall);
+    }
+    
+    return null;
+ });
 }
 
-
 export async function repeatLastCall(): Promise<Ticket | null> {
-  if (globalForStore.lastCalled) {
-    // Mark as repeat and update timestamp to trigger display update
-    return markTicketAsCalled(globalForStore.lastCalled, true);
-  }
-  return null;
+  return withLock(async () => {
+    if (globalForStore.lastCalled) {
+      return markTicketAsCalled(globalForStore.lastCalled, true);
+    }
+    return null;
+  });
 }
 
 export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, history: Ticket[], videos: string[] }> {
