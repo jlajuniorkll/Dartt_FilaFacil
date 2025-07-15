@@ -1,29 +1,23 @@
+
 'use server';
-import type { AppSettings, ButtonConfig, Ticket, DashboardStats } from './types';
-import { revalidatePath } from 'next/cache';
+import type { AppSettings, Ticket, DashboardStats, DailyQueue } from './types';
 import { firestore } from './firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
 
 
-// --- Firestore Document Reference ---
+// --- Firestore Document References ---
 const settingsDocRef = doc(firestore, 'app/settings');
-
-
-// This is a workaround to simulate a persistent in-memory store for non-settings data.
-// In a real-world application, tickets and queue status should also be in Firestore.
-const globalForStore = globalThis as unknown as {
-  tickets: Ticket[];
-  sequenceCounters: { [key: string]: number };
-  callCounters: { [key: string]: number };
-  lastCalled: Ticket | null;
-  callHistory: Ticket[];
-  isCalling: boolean;
-};
+const getTodayDocRef = () => {
+    // Format: YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+    return doc(firestore, `dailyQueues/${today}`);
+}
+const getTicketsCollectionRef = () => collection(getTodayDocRef(), 'tickets');
 
 const initialSettings: AppSettings = {
   buttons: [
-    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, color: '#5DADE2', textColor: '#FFFFFF' },
-    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, color: '#F39C12', textColor: '#FFFFFF' },
+    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, startNumber: 1, color: '#5DADE2', textColor: '#FFFFFF' },
+    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, startNumber: 1, color: '#F39C12', textColor: '#FFFFFF' },
   ],
   youtubeUrls: [
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -34,102 +28,48 @@ const initialSettings: AppSettings = {
   totalCounters: 5,
 };
 
-// Initialize in-memory store for ticket data
-const store = {
-  tickets: globalForStore.tickets ?? [],
-  sequenceCounters: globalForStore.sequenceCounters ?? { 'btn-1': 0, 'btn-2': 0 },
-  callCounters: globalForStore.callCounters ?? { 'btn-1': 0, 'btn-2': 0 },
-  lastCalled: globalForStore.lastCalled ?? null,
-  callHistory: globalForStore.callHistory ?? [],
-  isCalling: globalForStore.isCalling ?? false,
-};
-
-if (process.env.NODE_ENV !== 'production' || !globalForStore.tickets) {
-  globalForStore.tickets = store.tickets;
-  globalForStore.sequenceCounters = store.sequenceCounters;
-  globalForStore.callCounters = store.callCounters;
-  globalForStore.lastCalled = store.lastCalled;
-  globalForStore.callHistory = store.callHistory;
-  globalForStore.isCalling = store.isCalling;
-}
-
-
 // --- Settings Management (Firestore) ---
 export async function getSettings(): Promise<AppSettings> {
   try {
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
-      // Merge with initial settings to ensure new fields are present
       const dbSettings = docSnap.data();
       return { ...initialSettings, ...dbSettings } as AppSettings;
     } else {
-      // Document doesn't exist, create it with initial settings
       await setDoc(settingsDocRef, initialSettings);
       return initialSettings;
     }
   } catch (error) {
     console.error("Error fetching settings from Firestore:", error);
-    // Fallback to initial settings in case of error
     return initialSettings;
   }
 }
 
 export async function updateSettings(newSettings: AppSettings): Promise<AppSettings> {
    await setDoc(settingsDocRef, newSettings, { merge: true });
-  // Ensure counters exist for new buttons in the in-memory store
-  newSettings.buttons.forEach(btn => {
-    if (!globalForStore.sequenceCounters[btn.id]) {
-      globalForStore.sequenceCounters[btn.id] = 0;
-    }
-    if (!globalForStore.callCounters[btn.id]) {
-      globalForStore.callCounters[btn.id] = 0;
-    }
-  });
-  return getSettings();
+   return newSettings;
 }
 
-// --- Ticket Management (In-Memory) ---
+// --- Daily Queue Management (Firestore) ---
 
-function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefined, isRepeat = false) {
-    const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall.id);
-    if (!originalTicket && !isRepeat) return null; // If not repeating, ticket must exist
-
-    let ticketToUpdate: Ticket;
-
-    if (isRepeat && globalForStore.lastCalled) {
-        // For repeats, we use the lastCalled ticket as the base
-        ticketToUpdate = globalForStore.lastCalled;
-        // The counter on repeat should be the one from the original call
-        ticketToUpdate.counter = ticketToUpdate.counter;
-    } else if (originalTicket) {
-        // For new calls, we use the ticket from the queue
-        ticketToUpdate = originalTicket;
-        ticketToUpdate.counter = counter; // Assign the counter
-    } else {
-        return null;
+async function getTodaysQueue(): Promise<DailyQueue> {
+    const todayDocRef = getTodayDocRef();
+    const docSnap = await getDoc(todayDocRef);
+    if(docSnap.exists()) {
+        return docSnap.data() as DailyQueue;
     }
-
-    // Update state for the called ticket
-    ticketToUpdate.called = true;
-    ticketToUpdate.calledAt = new Date().toISOString(); // ALWAYS update timestamp to trigger display
-    ticketToUpdate.isRepeat = isRepeat;
-
-    globalForStore.lastCalled = JSON.parse(JSON.stringify(ticketToUpdate));
-
-    if (!isRepeat) {
-        // Add to history only on the first call, not on repeats
-        const historyIndex = globalForStore.callHistory.findIndex(t => t.id === ticketToUpdate.id);
-        if (historyIndex > -1) {
-            globalForStore.callHistory.splice(historyIndex, 1);
-        }
-        globalForStore.callHistory.unshift(JSON.parse(JSON.stringify(ticketToUpdate)));
-        if (globalForStore.callHistory.length > 10) {
-            globalForStore.callHistory.pop();
-        }
-    }
-    
-    return globalForStore.lastCalled;
+    // If it doesn't exist, create it
+    const settings = await getSettings();
+    const newQueue: DailyQueue = {
+        lastCalled: null,
+        callHistory: [],
+        callCounters: Object.fromEntries(settings.buttons.map(b => [b.id, 0])),
+    };
+    await setDoc(todayDocRef, newQueue);
+    return newQueue;
 }
+
+// --- Ticket Management (Firestore) ---
 
 export async function generateTicket(buttonId: string): Promise<Ticket> {
   const settings = await getSettings();
@@ -138,53 +78,116 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
     throw new Error('Button configuration not found');
   }
 
-  globalForStore.sequenceCounters[buttonId] = (globalForStore.sequenceCounters[buttonId] || 0) + 1;
-  const newTicket: Ticket = {
-    id: `ticket-${Date.now()}`,
-    type: button.id,
-    prefix: button.prefix,
-    displayNumber: globalForStore.sequenceCounters[buttonId],
-    ticketNumber: `${button.prefix}${globalForStore.sequenceCounters[buttonId].toString().padStart(3, '0')}`,
-    timestamp: new Date().toISOString(),
-    called: false,
-  };
+  const todayDocRef = getTodayDocRef();
+  let newTicket: Ticket | null = null;
+  
+  await runTransaction(firestore, async (transaction) => {
+    const todayDoc = await transaction.get(todayDocRef);
+    let sequenceCounters: { [key: string]: number } = {};
 
-  globalForStore.tickets.push(newTicket);
-  return JSON.parse(JSON.stringify(newTicket));
+    if (!todayDoc.exists()) {
+        // Initialize for all buttons with their start numbers if doc doesn't exist
+        settings.buttons.forEach(btn => {
+            sequenceCounters[btn.id] = (btn.startNumber || 1) - 1;
+        });
+    } else {
+        sequenceCounters = todayDoc.data().sequenceCounters || {};
+        // Ensure all buttons from settings have a counter, initialize if missing
+        settings.buttons.forEach(btn => {
+            if (sequenceCounters[btn.id] === undefined) {
+                sequenceCounters[btn.id] = (btn.startNumber || 1) - 1;
+            }
+        });
+    }
+
+    const currentNumber = (sequenceCounters[buttonId] || (button.startNumber || 1) - 1) + 1;
+    sequenceCounters[buttonId] = currentNumber;
+    
+    newTicket = {
+        id: `ticket-${Date.now()}-${button.prefix}`,
+        type: button.id,
+        prefix: button.prefix,
+        displayNumber: currentNumber,
+        ticketNumber: `${button.prefix}${currentNumber.toString().padStart(3, '0')}`,
+        timestamp: new Date().toISOString(),
+        called: false,
+    };
+    
+    const ticketDocRef = doc(getTicketsCollectionRef(), newTicket.id);
+    transaction.set(ticketDocRef, newTicket);
+    transaction.set(todayDocRef, { sequenceCounters }, { merge: true });
+  });
+
+  if (!newTicket) {
+      throw new Error("Failed to create ticket within the transaction.");
+  }
+  
+  return newTicket;
 }
 
-async function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  if (globalForStore.isCalling) {
-    throw new Error('Uma chamada já está em andamento. Por favor, aguarde.');
-  }
-  globalForStore.isCalling = true;
-  try {
-    return await fn();
-  } finally {
-    globalForStore.isCalling = false;
-  }
-}
+async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefined, isRepeat = false): Promise<Ticket | null> {
+    const todayDocRef = getTodayDocRef();
 
+    await runTransaction(firestore, async (transaction) => {
+        const todayDoc = await transaction.get(todayDocRef);
+        if (!todayDoc.exists()) throw new Error("Today's queue document not found.");
+
+        const queueData = todayDoc.data() as DailyQueue;
+        
+        let updatedTicketData = { ...ticketToCall };
+
+        if (isRepeat) {
+            if (!queueData.lastCalled) return; // Can't repeat if nothing was called
+            updatedTicketData = { ...queueData.lastCalled };
+            updatedTicketData.calledAt = new Date().toISOString(); // Update timestamp to trigger display
+            updatedTicketData.isRepeat = true;
+        } else {
+            const ticketDocRef = doc(getTicketsCollectionRef(), ticketToCall.id);
+            updatedTicketData.called = true;
+            updatedTicketData.calledAt = new Date().toISOString();
+            updatedTicketData.counter = counter;
+            updatedTicketData.isRepeat = false;
+            transaction.update(ticketDocRef, { called: true, calledAt: updatedTicketData.calledAt, counter });
+        }
+        
+        const newHistory = [updatedTicketData, ...queueData.callHistory.filter(t => t.id !== updatedTicketData.id)].slice(0, 10);
+        
+        transaction.update(todayDocRef, {
+            lastCalled: updatedTicketData,
+            callHistory: newHistory,
+        });
+
+        // This is to pass the updated ticket out of the transaction
+        ticketToCall = updatedTicketData;
+    });
+
+    return ticketToCall;
+}
 
 export async function callNextTicket(counter: number): Promise<Ticket | null> {
-  return withLock(async () => {
-    const settings = await getSettings();
-    let ticketToCall: Ticket | undefined;
+  const settings = await getSettings();
+  const todaysQueue = await getTodaysQueue();
+
+  const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), orderBy("timestamp", "asc"));
+  const pendingTicketsSnap = await getDocs(ticketsQuery);
+  const pendingTickets = pendingTicketsSnap.docs.map(d => d.data() as Ticket);
+  
+  if (pendingTickets.length === 0) return null;
+
+  let ticketToCall: Ticket | undefined;
     
-    if (settings.priorityEnabled) {
-      const pendingTickets = globalForStore.tickets.filter(t => !t.called);
-      if (pendingTickets.length === 0) return null;
-
+  if (settings.priorityEnabled) {
       const sortedButtons = [...settings.buttons].sort((a, b) => a.priority - b.priority);
-
+      const callCounters = todaysQueue.callCounters || {};
       let foundTicket = false;
+      
       for (const button of sortedButtons) {
-          const callCount = globalForStore.callCounters[button.id] || 0;
+          const callCount = callCounters[button.id] || 0;
           if (callCount < button.frequency) {
               const eligibleTicket = pendingTickets.find(t => t.type === button.id);
               if (eligibleTicket) {
                   ticketToCall = eligibleTicket;
-                  globalForStore.callCounters[button.id] = callCount + 1;
+                  callCounters[button.id] = callCount + 1;
                   foundTicket = true;
                   break;
               }
@@ -192,89 +195,82 @@ export async function callNextTicket(counter: number): Promise<Ticket | null> {
       }
 
       if (!foundTicket) {
-          Object.keys(globalForStore.callCounters).forEach(key => globalForStore.callCounters[key] = 0);
+          // Reset counters and try again
+          Object.keys(callCounters).forEach(key => callCounters[key] = 0);
           for (const button of sortedButtons) {
               const eligibleTicket = pendingTickets.find(t => t.type === button.id);
               if (eligibleTicket) {
                   ticketToCall = eligibleTicket;
-                  globalForStore.callCounters[button.id] = 1;
+                  callCounters[button.id] = 1;
                   break;
               }
           }
       }
       
+      // Fallback to oldest ticket if logic doesn't find one but tickets exist
       if(!ticketToCall && pendingTickets.length > 0) {
-        ticketToCall = pendingTickets.sort((a, b) => {
-          const priorityA = settings.buttons.find(btn => btn.id === a.type)?.priority ?? 99;
-          const priorityB = settings.buttons.find(btn => btn.id === b.type)?.priority ?? 99;
-          if (priorityA !== priorityB) return priorityA - priorityB;
-          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-        })[0];
+        ticketToCall = pendingTickets[0];
       }
+      
+      // Persist updated call counters
+      await setDoc(getTodayDocRef(), { callCounters }, { merge: true });
 
-    } else {
-      ticketToCall = globalForStore.tickets
-        .filter(t => !t.called)
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
-    }
+  } else {
+      ticketToCall = pendingTickets[0];
+  }
 
-    if (ticketToCall) {
-      return markTicketAsCalled(ticketToCall, counter);
-    }
+  if (ticketToCall) {
+    return markTicketAsCalled(ticketToCall, counter);
+  }
 
-    return null;
-  });
+  return null;
 }
 
 export async function callNextTicketByType(buttonId: string, counter: number): Promise<Ticket | null> {
- return withLock(async () => {
-    const ticketToCall = globalForStore.tickets
-      .filter(t => !t.called && t.type === buttonId)
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
-
-    if (ticketToCall) {
-        return markTicketAsCalled(ticketToCall, counter);
-    }
-    
-    return null;
- });
+   const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), where("type", "==", buttonId), orderBy("timestamp", "asc"), limit(1));
+   const ticketSnap = await getDocs(ticketsQuery);
+   
+   if (ticketSnap.empty) return null;
+   
+   const ticketToCall = ticketSnap.docs[0].data() as Ticket;
+   return markTicketAsCalled(ticketToCall, counter);
 }
 
 export async function repeatLastCall(): Promise<Ticket | null> {
-  return withLock(async () => {
-    if (globalForStore.lastCalled) {
-      // The counter is already on the lastCalled object.
-      return markTicketAsCalled(globalForStore.lastCalled, undefined, true);
+    const todaysQueue = await getTodaysQueue();
+    if (todaysQueue.lastCalled) {
+        return markTicketAsCalled(todaysQueue.lastCalled, undefined, true);
     }
     return null;
-  });
 }
 
 export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, history: Ticket[], videos: string[] }> {
   const settings = await getSettings();
-  return Promise.resolve({
-    lastCalled: globalForStore.lastCalled ? JSON.parse(JSON.stringify(globalForStore.lastCalled)) : null,
-    history: JSON.parse(JSON.stringify(globalForStore.callHistory)),
+  const todaysQueue = await getTodaysQueue();
+  return {
+    lastCalled: todaysQueue.lastCalled,
+    history: todaysQueue.callHistory,
     videos: settings.youtubeUrls,
-  });
+  };
 }
 
 export async function getPendingTickets(): Promise<Ticket[]> {
-    return Promise.resolve(JSON.parse(JSON.stringify(globalForStore.tickets.filter(t => !t.called))));
+    const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), orderBy("timestamp", "asc"));
+    const pendingTicketsSnap = await getDocs(ticketsQuery);
+    return pendingTicketsSnap.docs.map(d => d.data() as Ticket);
 }
-
-// --- Dashboard Data ---
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const settings = await getSettings();
-  const today = new Date().toISOString().split('T')[0];
+  
+  const ticketsSnap = await getDocs(getTicketsCollectionRef());
+  const allTicketsToday = ticketsSnap.docs.map(d => d.data() as Ticket);
 
-  const ticketsToday = globalForStore.tickets.filter(t => t.timestamp.startsWith(today));
-  const calledToday = ticketsToday.filter(t => t.called);
-  const waiting = globalForStore.tickets.filter(t => !t.called);
+  const calledToday = allTicketsToday.filter(t => t.called);
+  const waiting = allTicketsToday.filter(t => !t.called);
 
   const ticketsByType = settings.buttons.map(button => {
-    const count = ticketsToday.filter(t => t.type === button.id).length;
+    const count = allTicketsToday.filter(t => t.type === button.id).length;
     return {
       name: button.name,
       count: count,
@@ -283,9 +279,34 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   });
 
   return {
-    totalIssued: ticketsToday.length,
+    totalIssued: allTicketsToday.length,
     totalCalled: calledToday.length,
     waitingCount: waiting.length,
     ticketsByType,
   };
+}
+
+export async function resetQueue(): Promise<void> {
+    const todayDocRef = getTodayDocRef();
+    const ticketsQuery = query(getTicketsCollectionRef());
+    const ticketsSnap = await getDocs(ticketsQuery);
+    
+    const batch = writeBatch(firestore);
+
+    // Delete all ticket subcollection documents
+    ticketsSnap.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    // Reset the daily queue document itself
+    const settings = await getSettings();
+    const newQueue: DailyQueue = {
+        lastCalled: null,
+        callHistory: [],
+        callCounters: Object.fromEntries(settings.buttons.map(b => [b.id, 0])),
+        sequenceCounters: Object.fromEntries(settings.buttons.map(b => [b.id, (b.startNumber || 1) -1 ])),
+    };
+    batch.set(todayDocRef, newQueue);
+
+    await batch.commit();
 }
