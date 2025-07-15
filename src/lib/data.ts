@@ -70,21 +70,34 @@ export async function updateSettings(newSettings: AppSettings): Promise<AppSetti
 
 function markTicketAsCalled(ticketToCall: Ticket, isRepeat = false) {
     const originalTicket = globalForStore.tickets.find(t => t.id === ticketToCall.id);
-    if (!originalTicket) return null;
+    if (!originalTicket && !isRepeat) return null; // If not repeating, ticket must exist
+
+    let ticketToUpdate: Ticket;
+
+    if (isRepeat && globalForStore.lastCalled) {
+        // For repeats, we use the lastCalled ticket as the base
+        ticketToUpdate = globalForStore.lastCalled;
+    } else if (originalTicket) {
+        // For new calls, we use the ticket from the queue
+        ticketToUpdate = originalTicket;
+    } else {
+        return null;
+    }
 
     // Update state for the called ticket
-    originalTicket.called = true;
-    originalTicket.calledAt = new Date().toISOString();
-    originalTicket.isRepeat = isRepeat;
+    ticketToUpdate.called = true;
+    ticketToUpdate.calledAt = new Date().toISOString(); // ALWAYS update timestamp to trigger display
+    ticketToUpdate.isRepeat = isRepeat;
 
-    globalForStore.lastCalled = JSON.parse(JSON.stringify(originalTicket));
+    globalForStore.lastCalled = JSON.parse(JSON.stringify(ticketToUpdate));
 
     if (!isRepeat) {
-        const historyIndex = globalForStore.callHistory.findIndex(t => t.id === originalTicket.id);
+        // Add to history only on the first call, not on repeats
+        const historyIndex = globalForStore.callHistory.findIndex(t => t.id === ticketToUpdate.id);
         if (historyIndex > -1) {
             globalForStore.callHistory.splice(historyIndex, 1);
         }
-        globalForStore.callHistory.unshift(JSON.parse(JSON.stringify(originalTicket)));
+        globalForStore.callHistory.unshift(JSON.parse(JSON.stringify(ticketToUpdate)));
         if (globalForStore.callHistory.length > 10) {
             globalForStore.callHistory.pop();
         }
@@ -203,6 +216,7 @@ export async function callNextTicketByType(buttonId: string): Promise<Ticket | n
 export async function repeatLastCall(): Promise<Ticket | null> {
   return withLock(async () => {
     if (globalForStore.lastCalled) {
+      // Pass the last called ticket directly
       return markTicketAsCalled(globalForStore.lastCalled, true);
     }
     return null;
