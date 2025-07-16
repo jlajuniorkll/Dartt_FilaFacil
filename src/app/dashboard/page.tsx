@@ -51,7 +51,7 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
         </div>
 
         {/* Charts */}
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
+        <div className="mt-8 flex flex-col gap-8">
           <Card>
             <CardHeader>
               <CardTitle>Distribuição de Senhas por Tipo</CardTitle>

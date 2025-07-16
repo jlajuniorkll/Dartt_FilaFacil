@@ -90,19 +90,14 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
   await runTransaction(firestore, async (transaction) => {
     const todayDoc = await transaction.get(todayDocRef);
     
-    // Determine the initial sequence value if a counter doesn't exist.
     const getInitialSequenceValue = (btn: ButtonConfig) => {
-        // For automatic, start at 0 so the first ticket is 1.
-        // For manual, start at the number before the desired startNumber.
         return btn.automaticNumbering ? 0 : (btn.startNumber || 1) - 1;
     };
 
     let sequenceCounters: { [key: string]: number };
     if (!todayDoc.exists() || !todayDoc.data().sequenceCounters) {
-        // If doc doesn't exist, or sequenceCounters field is missing, initialize all counters.
         sequenceCounters = Object.fromEntries(settings.buttons.map(btn => [btn.id, getInitialSequenceValue(btn)]));
     } else {
-        // If doc exists, load existing counters, ensuring all buttons have an entry.
         const existingData = todayDoc.data();
         sequenceCounters = existingData.sequenceCounters || {};
         settings.buttons.forEach(btn => {
@@ -114,8 +109,6 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
 
     let currentSequence = sequenceCounters[buttonId];
     
-    // If not automatic, ensure the current sequence is at least the desired start number.
-    // This handles changing the start number mid-day.
     if (!button.automaticNumbering && button.startNumber) {
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
@@ -315,7 +308,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     return {
       name: button.name,
       count: count,
-      fill: `var(--chart-${(settings.buttons.indexOf(button) % 5) + 1})`
+      fill: button.color
     };
   });
   
@@ -327,10 +320,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   });
 
   const ticketsByCounter = Object.entries(calledByCounterMap)
-    .map(([counter, count]) => ({
+    .map(([counter, count], index) => ({
         counter: `Guichê ${counter}`,
         count,
-        fill: `var(--chart-${(Number(counter) % 5) + 1})`
+        fill: `var(--chart-${(index % 5) + 1})`
     }))
     .sort((a,b) => a.counter.localeCompare(b.counter));
 
