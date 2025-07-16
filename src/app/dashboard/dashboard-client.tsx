@@ -148,7 +148,7 @@ export default function DashboardClient({
           </Card>
         </div>
 
-        <div className="mt-8 flex flex-col gap-8">
+        <div className="mt-8 grid grid-cols-1 gap-8">
           <Card>
             <CardHeader>
               <CardTitle>Distribuição de Senhas por Tipo</CardTitle>

@@ -24,7 +24,6 @@ export default function DashboardPage() {
     setDataLoading(true);
     setError(null);
     try {
-      // Ensure dateRange has a 'from' property
       if (!dateRange.from) {
         throw new Error("Date range must have a start date.");
       }

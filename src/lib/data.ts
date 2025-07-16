@@ -285,11 +285,9 @@ export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, his
 }
 
 export async function getPendingTickets(): Promise<Ticket[]> {
-    const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false));
+    const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), orderBy("timestamp"));
     const pendingTicketsSnap = await getDocs(ticketsQuery);
-    const tickets = pendingTicketsSnap.docs.map(d => d.data() as Ticket);
-    tickets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    return tickets;
+    return pendingTicketsSnap.docs.map(d => d.data() as Ticket);
 }
 
 
@@ -312,24 +310,17 @@ function formatDuration(totalSeconds: number): string {
 }
 
 async function getTicketsInDateRange(dateRange: DateRange): Promise<Ticket[]> {
-    if (!dateRange || !dateRange.from) {
-        const ticketsSnap = await getDocs(getTicketsCollectionRef());
-        return ticketsSnap.docs.map(d => d.data() as Ticket);
-    }
+    if (!dateRange || !dateRange.from) return [];
 
     const startDate = startOfDay(dateRange.from);
     const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
 
-    if (startDate > endDate) {
-        return [];
-    }
+    if (startDate > endDate) return [];
     
     const intervalDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     const ticketPromises = intervalDays.map(day => {
-        const dateString = day.toISOString().split('T')[0];
-        const dailyDocRef = doc(firestore, `dailyQueues/${dateString}`);
-        const ticketsCollectionRef = collection(dailyDocRef, 'tickets');
+        const ticketsCollectionRef = getTicketsCollectionRefForDate(day);
         return getDocs(ticketsCollectionRef);
     });
     
@@ -372,7 +363,7 @@ export async function getDashboardStats(dateRange: DateRange): Promise<Dashboard
     }
   });
   
-  const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+  const chartColors = ['hsl(207, 68%, 62%)', 'hsl(173, 58%, 39%)', 'hsl(36, 90%, 51%)', 'hsl(43, 74%, 66%)', 'hsl(27, 87%, 67%)'];
 
   const ticketsByCounter = Object.entries(calledByCounterMap)
     .map(([counter, count], index) => ({
@@ -457,5 +448,3 @@ export async function resetSequenceCounters(): Promise<void> {
         sequenceCounters: initialSequenceCounters,
     });
 }
-
-
