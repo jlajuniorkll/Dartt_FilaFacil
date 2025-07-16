@@ -2,7 +2,7 @@
 'use client';
 
 import type { Ticket } from '@/lib/types';
-import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { generateTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
