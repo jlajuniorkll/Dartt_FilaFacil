@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { ButtonConfig, Ticket } from '@/lib/types';
+import type { Ticket } from '@/lib/types';
 import { useState, useTransition, useEffect, useCallback } from 'react';
 import { generateTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +16,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, Ticket as TicketIcon } from 'lucide-react';
 
-// A lógica do PrintableTicket foi movida para cá para simplificar e garantir a renderização.
 function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
   if (!ticket) return null;
 
@@ -38,7 +37,7 @@ function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
 }
 
 
-export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) {
+export default function RequestClient({ buttons }: { buttons: any[] }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
@@ -62,45 +61,33 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    // Delay para animação de fechamento do modal
     setTimeout(() => {
       setGeneratedTicket(null);
-    }, 300);
+    }, 300); 
   }, []);
 
-  // Efeito para acionar a impressão.
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
-      // O timeout é crucial. Ele adia a chamada de impressão para o próximo
-      // ciclo de eventos do navegador, garantindo que o React tenha renderizado
-      // o conteúdo antes que o navegador tente imprimi-lo.
       const timer = setTimeout(() => {
         window.print();
-      }, 100); // 100ms é um delay seguro.
-
+      }, 100); 
       return () => clearTimeout(timer);
     }
   }, [isModalOpen, generatedTicket]);
 
-  // Efeito para fechar o modal após a impressão (ou cancelamento).
   useEffect(() => {
-    if (!isModalOpen) {
-      return;
-    }
+    if (!isModalOpen) return;
 
     const handleAfterPrint = () => {
       closeModal();
     };
-
     window.addEventListener('afterprint', handleAfterPrint);
-
-    // Um fallback para fechar o modal caso o evento 'afterprint' não dispare
-    // (ex: o usuário fecha a aba ou cancela a impressão em alguns navegadores).
+    
     const fallbackTimeout = setTimeout(() => {
       if (isModalOpen) {
         closeModal();
       }
-    }, 5000); // Fecha após 5 segundos.
+    }, 5000); 
 
     return () => {
       window.removeEventListener('afterprint', handleAfterPrint);
