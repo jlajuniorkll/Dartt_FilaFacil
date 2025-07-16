@@ -70,7 +70,7 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
                        }}
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Total Emitido" fill="var(--color-fill)" />
+                    <Bar dataKey="count" name="Total Emitido" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
