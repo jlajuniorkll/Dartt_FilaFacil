@@ -1,6 +1,6 @@
 
 'use server';
-import type { AppSettings, Ticket, DashboardStats, DailyQueue } from './types';
+import type { AppSettings, Ticket, DashboardStats, DailyQueue, ButtonConfig } from './types';
 import { firestore } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
@@ -86,44 +86,54 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
 
   const todayDocRef = getTodayDocRef();
   let newTicket: Ticket | null = null;
-  
+
   await runTransaction(firestore, async (transaction) => {
     const todayDoc = await transaction.get(todayDocRef);
     let sequenceCounters: { [key: string]: number } = {};
 
-    // Determine the correct starting number based on the switch
-    const getStartNumber = (btn: typeof button) => {
+    // Helper to determine the correct initial number for a sequence
+    const getInitialSequenceValue = (btn: ButtonConfig) => {
         return btn.automaticNumbering ? 0 : (btn.startNumber || 1) - 1;
     };
 
     if (!todayDoc.exists()) {
-        // Initialize for all buttons with their correct start numbers if doc doesn't exist
+        // If doc doesn't exist, initialize all counters based on their settings
         settings.buttons.forEach(btn => {
-            sequenceCounters[btn.id] = getStartNumber(btn);
+            sequenceCounters[btn.id] = getInitialSequenceValue(btn);
         });
     } else {
+        // If doc exists, load existing counters
         sequenceCounters = todayDoc.data().sequenceCounters || {};
-        // Ensure all buttons from settings have a counter, initialize if missing
-        settings.buttons.forEach(btn => {
-            if (sequenceCounters[btn.id] === undefined) {
-                 sequenceCounters[btn.id] = getStartNumber(btn);
-            }
-        });
     }
 
-    const currentNumber = (sequenceCounters[buttonId] || getStartNumber(button)) + 1;
-    sequenceCounters[buttonId] = currentNumber;
+    // Ensure a counter exists for the button being pressed
+    if (sequenceCounters[buttonId] === undefined) {
+      sequenceCounters[buttonId] = getInitialSequenceValue(button);
+    }
     
+    let currentSequence = sequenceCounters[buttonId];
+    
+    // If not automatic, check if the current sequence is less than the desired start number
+    if (!button.automaticNumbering) {
+        const startNumber = (button.startNumber || 1);
+        if (currentSequence < startNumber -1) {
+            currentSequence = startNumber - 1;
+        }
+    }
+
+    const newNumber = currentSequence + 1;
+    sequenceCounters[buttonId] = newNumber;
+
     newTicket = {
         id: `ticket-${Date.now()}-${button.prefix}`,
         type: button.id,
         prefix: button.prefix,
-        displayNumber: currentNumber,
-        ticketNumber: `${button.prefix}${currentNumber.toString().padStart(3, '0')}`,
+        displayNumber: newNumber,
+        ticketNumber: `${button.prefix}${newNumber.toString().padStart(3, '0')}`,
         timestamp: new Date().toISOString(),
         called: false,
     };
-    
+
     const ticketDocRef = doc(getTicketsCollectionRef(), newTicket.id);
     transaction.set(ticketDocRef, newTicket);
     transaction.set(todayDocRef, { sequenceCounters }, { merge: true });
@@ -332,5 +342,3 @@ export async function resetQueue(): Promise<void> {
 
     await batch.commit();
 }
-
-    
