@@ -12,6 +12,12 @@ import { Button } from '@/components/ui/button';
 import { subDays } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import type { UserOptions } from 'jspdf-autotable';
+
+// Adicione esta interface para estender as opções do autoTable com uma propriedade cursor
+interface AutoTableUserOptions extends UserOptions {
+  cursor?: { y: number };
+}
 
 export default function DashboardClient({ 
   initialStats, 
@@ -29,13 +35,14 @@ export default function DashboardClient({
 
   const handlePrint = () => {
     const doc = new jsPDF();
-
     const formatDate = (date: Date | undefined) => date ? date.toLocaleDateString('pt-BR') : 'N/A';
-    const reportTitle = `Relatório Fila Fácil - Período: ${formatDate(dateRange?.from)} a ${formatDate(dateRange?.to)}`;
     
+    // Título Principal do Relatório
+    const reportTitle = `Relatório Fila Fácil - Período: ${formatDate(dateRange?.from)} a ${formatDate(dateRange?.to)}`;
     doc.setFontSize(18);
     doc.text(reportTitle, 14, 22);
 
+    // Primeira Tabela: Métricas Gerais
     autoTable(doc, {
       startY: 30,
       head: [['Métrica', 'Valor']],
@@ -47,31 +54,33 @@ export default function DashboardClient({
       theme: 'grid'
     });
 
+    // Função auxiliar para adicionar tabelas com título
+    const addTitledTable = (title: string, options: AutoTableUserOptions) => {
+      const lastTable = (doc as any).lastAutoTable;
+      const startY = lastTable.finalY + 15; // Adiciona um espaçamento de 15px
+
+      doc.setFontSize(14);
+      doc.text(title, 14, startY);
+
+      options.startY = startY + 6; // Posição inicial da tabela abaixo do título
+      autoTable(doc, options);
+    };
+
+    // Tabela: Distribuição por Tipo
     if (initialStats.ticketsByType.length > 0) {
-      autoTable(doc, {
+      addTitledTable('Distribuição de Senhas por Tipo', {
         head: [['Tipo de Senha', 'Quantidade Emitida']],
         body: initialStats.ticketsByType.map(item => [item.name, item.count]),
         theme: 'grid',
-        didDrawPage: (data) => {
-            doc.setFontSize(14);
-            if(data.pageNumber === 1 && data.cursor) {
-              doc.text('Distribuição de Senhas por Tipo', 14, data.cursor.y - 10);
-            }
-        }
       });
     }
 
+    // Tabela: Chamadas por Guichê
     if (initialStats.ticketsByCounter.length > 0) {
-      autoTable(doc, {
+      addTitledTable('Senhas Chamadas por Guichê', {
         head: [['Guichê', 'Quantidade Chamada']],
         body: initialStats.ticketsByCounter.map(item => [item.counter, item.count]),
         theme: 'grid',
-         didDrawPage: (data) => {
-            doc.setFontSize(14);
-             if(data.cursor) {
-                doc.text('Senhas Chamadas por Guichê', 14, data.cursor.y - 10);
-             }
-        }
       });
     }
     
