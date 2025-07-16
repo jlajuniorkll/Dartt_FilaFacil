@@ -2,7 +2,7 @@
 'use client';
 
 import type { Ticket } from '@/lib/types';
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
 import { generateTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -58,36 +58,41 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
       }
     });
   };
-
+  
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
+    // Allow animation to finish before clearing ticket data
     setTimeout(() => {
       setGeneratedTicket(null);
-    }, 300); 
+    }, 300);
   }, []);
 
+  // Effect to trigger print when modal opens with a ticket
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
       const timer = setTimeout(() => {
         window.print();
-      }, 100); 
+      }, 100); // Small delay to ensure DOM is updated
       return () => clearTimeout(timer);
     }
   }, [isModalOpen, generatedTicket]);
 
+  // Effect to handle closing the modal after printing
   useEffect(() => {
     if (!isModalOpen) return;
 
     const handleAfterPrint = () => {
-      closeModal();
+        closeModal();
     };
+
     window.addEventListener('afterprint', handleAfterPrint);
     
+    // Fallback in case the user cancels the print dialog
     const fallbackTimeout = setTimeout(() => {
-      if (isModalOpen) {
-        closeModal();
+      if(isModalOpen) {
+          closeModal();
       }
-    }, 5000); 
+    }, 5000); // Close modal after 5 seconds if print dialog is left open
 
     return () => {
       window.removeEventListener('afterprint', handleAfterPrint);
@@ -120,7 +125,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
       </div>
       
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px] text-center p-8 not-printable" onPointerDownOutside={closeModal} onEscapeKeyDown={closeModal}>
+        <DialogContent className="sm:max-w-[425px] text-center p-8 not-printable" onPointerDownOutside={(e) => { e.preventDefault(); closeModal(); }} onEscapeKeyDown={closeModal}>
           <DialogHeader>
             <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit mb-4">
               <TicketIcon className="h-12 w-12 text-primary" />
@@ -142,6 +147,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
         </DialogContent>
       </Dialog>
       
+      {/* This area is hidden on screen but visible for printing */}
       <div className="printable-area">
         <PrintableTicketContent ticket={generatedTicket} />
       </div>

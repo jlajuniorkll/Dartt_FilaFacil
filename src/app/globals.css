@@ -88,15 +88,20 @@ h1, h2, h3, h4, h5, h6 {
   header, footer, .not-printable {
     display: none !important;
   }
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
+  body * {
+    visibility: hidden;
+  }
+  .printable-area, .printable-area * {
+    visibility: visible;
   }
   .printable-area {
-    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
   }
   @page {
-    size: 80mm 150mm; /* Example size for thermal printers */
+    size: 80mm auto; /* Example size for thermal printers */
     margin: 0;
   }
 }
