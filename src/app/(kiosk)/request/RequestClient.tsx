@@ -22,7 +22,6 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
   const [isPending, startTransition] = useTransition();
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const printableTicketRef = useRef(null);
 
   const handleGenerateTicket = (buttonId: string) => {
     startTransition(async () => {
@@ -44,26 +43,20 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
     setIsModalOpen(false);
     // Delay resetting the ticket to avoid flicker during modal close animation
     setTimeout(() => {
-        setGeneratedTicket(null);
+      setGeneratedTicket(null);
     }, 300);
   }, []);
 
+  const handlePrint = () => {
+      window.print();
+  }
+
+  // This effect handles closing the modal after the print dialog is interacted with.
   useEffect(() => {
-    if (!isModalOpen || !generatedTicket) {
+    if (!isModalOpen) {
       return;
     }
 
-    const handlePrint = () => {
-      // Use a timeout to ensure the printable content is rendered before printing
-      const printTimeout = setTimeout(() => {
-        window.print();
-      }, 500); // A 500ms delay is generally safe for rendering
-      return printTimeout;
-    };
-
-    const printTimeoutId = handlePrint();
-    
-    // This event listener closes the modal after the print dialog is closed (either by printing or canceling)
     const handleAfterPrint = () => {
       closeModal();
     };
@@ -74,18 +67,17 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
     // the 'afterprint' event might not fire consistently across browsers.
     // We'll set a timeout to close the modal anyway.
     const fallbackTimeoutId = setTimeout(() => {
-        if (isModalOpen) {
-            closeModal();
-        }
+      if (isModalOpen) {
+        closeModal();
+      }
     }, 5000); // Close after 5 seconds if nothing happens
 
-    // Cleanup function
+
     return () => {
-      clearTimeout(printTimeoutId);
-      clearTimeout(fallbackTimeoutId);
       window.removeEventListener('afterprint', handleAfterPrint);
+      clearTimeout(fallbackTimeoutId);
     };
-  }, [isModalOpen, generatedTicket, closeModal]);
+  }, [isModalOpen, closeModal]);
 
 
   return (
@@ -136,7 +128,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       
       {generatedTicket && (
         <div className="printable-area">
-          <PrintableTicket ticket={generatedTicket} ref={printableTicketRef} />
+          <PrintableTicket ticket={generatedTicket} onRendered={handlePrint} />
         </div>
       )}
     </>
