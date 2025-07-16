@@ -289,9 +289,16 @@ export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, his
 }
 
 export async function getPendingTickets(): Promise<Ticket[]> {
-    const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false), orderBy("timestamp"));
+    const ticketsQuery = query(getTicketsCollectionRef());
     const pendingTicketsSnap = await getDocs(ticketsQuery);
-    return pendingTicketsSnap.docs.map(d => d.data() as Ticket);
+    
+    const allTickets = pendingTicketsSnap.docs.map(d => d.data() as Ticket);
+    
+    const pending = allTickets.filter(t => !t.called);
+    
+    pending.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    return pending;
 }
 
 
@@ -317,7 +324,6 @@ async function getTicketsInDateRange(dateRange: DateRange): Promise<Ticket[]> {
     if (!dateRange.from) return [];
   
     const startDate = startOfDay(dateRange.from);
-    // Ensure the end date covers the entire day
     const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
   
     if (startDate > endDate) return [];
@@ -351,7 +357,9 @@ export async function getDashboardStats(dateRange: DateRange): Promise<Dashboard
   
   let totalServiceSeconds = 0;
   calledTicketsForPeriod.forEach(t => {
-      totalServiceSeconds += differenceInSeconds(new Date(t.calledAt!), new Date(t.timestamp));
+      if (t.calledAt) {
+          totalServiceSeconds += differenceInSeconds(new Date(t.calledAt), new Date(t.timestamp));
+      }
   });
   const averageServiceTimeInSeconds = calledTicketsForPeriod.length > 0 ? totalServiceSeconds / calledTicketsForPeriod.length : 0;
   
@@ -368,7 +376,7 @@ export async function getDashboardStats(dateRange: DateRange): Promise<Dashboard
     }
   });
   
-  const chartColors = ['hsl(207, 68%, 62%)', 'hsl(173, 58%, 39%)', 'hsl(36, 90%, 51%)', 'hsl(43, 74%, 66%)', 'hsl(27, 87%, 67%)'];
+  const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
   const ticketsByCounter = Object.entries(calledByCounterMap)
     .map(([counter, count], index) => ({
