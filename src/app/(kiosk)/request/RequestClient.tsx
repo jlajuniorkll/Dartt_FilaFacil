@@ -42,36 +42,49 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    setGeneratedTicket(null);
+    // Delay resetting the ticket to avoid flicker during modal close animation
+    setTimeout(() => {
+        setGeneratedTicket(null);
+    }, 300);
   }, []);
 
   useEffect(() => {
+    if (!isModalOpen || !generatedTicket) {
+      return;
+    }
+
     const handlePrint = () => {
-      setTimeout(() => {
+      // Use a timeout to ensure the printable content is rendered before printing
+      const printTimeout = setTimeout(() => {
         window.print();
-      }, 500); // Increased delay to ensure rendering
+      }, 500); // A 500ms delay is generally safe for rendering
+      return printTimeout;
     };
+
+    const printTimeoutId = handlePrint();
     
+    // This event listener closes the modal after the print dialog is closed (either by printing or canceling)
     const handleAfterPrint = () => {
       closeModal();
     };
 
-    if (isModalOpen && generatedTicket) {
-      window.addEventListener('afterprint', handleAfterPrint);
-      handlePrint();
-      
-      // Fallback to close modal if user cancels print dialog
-      const cancelPrintTimeout = setTimeout(() => {
-         if(isModalOpen){
-            closeModal();
-         }
-      }, 3000);
+    window.addEventListener('afterprint', handleAfterPrint);
 
-      return () => {
-        window.removeEventListener('afterprint', handleAfterPrint);
-        clearTimeout(cancelPrintTimeout);
-      };
-    }
+    // Fallback: If the user just closes the print dialog without printing,
+    // the 'afterprint' event might not fire consistently across browsers.
+    // We'll set a timeout to close the modal anyway.
+    const fallbackTimeoutId = setTimeout(() => {
+        if (isModalOpen) {
+            closeModal();
+        }
+    }, 5000); // Close after 5 seconds if nothing happens
+
+    // Cleanup function
+    return () => {
+      clearTimeout(printTimeoutId);
+      clearTimeout(fallbackTimeoutId);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
   }, [isModalOpen, generatedTicket, closeModal]);
 
 
