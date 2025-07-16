@@ -2,7 +2,7 @@
 'use client';
 
 import type { ButtonConfig, Ticket } from '@/lib/types';
-import { useState, useTransition, useEffect, useRef, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { generateTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -15,7 +15,28 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Ticket as TicketIcon } from 'lucide-react';
-import PrintableTicket from '@/components/PrintableTicket';
+
+// This is the new printable ticket component, directly inside the client file for simplicity.
+function PrintableTicket({ ticket }: { ticket: Ticket | null }) {
+  if (!ticket) return null;
+
+  return (
+    <div className="p-2 text-black bg-white" style={{ fontFamily: 'monospace', width: '80mm' }}>
+      <div className="text-center">
+        <h1 className="text-lg font-bold">Fila Fácil</h1>
+        <p className="text-xs">--------------------------------</p>
+        <p className="text-sm my-2">Sua Senha:</p>
+        <p className="text-5xl font-bold tracking-widest my-4">{ticket.ticketNumber}</p>
+        <p className="text-xs">--------------------------------</p>
+        <p className="text-xs">
+          Emitido em: {new Date(ticket.timestamp).toLocaleDateString('pt-BR')} às {new Date(ticket.timestamp).toLocaleTimeString('pt-BR')}
+        </p>
+        <p className="text-sm font-bold mt-4">Aguarde sua chamada no painel.</p>
+      </div>
+    </div>
+  );
+}
+
 
 export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) {
   const { toast } = useToast();
@@ -28,7 +49,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       const result = await generateTicket(buttonId);
       if (result.success && result.ticket) {
         setGeneratedTicket(result.ticket);
-        setIsModalOpen(true);
+        setIsModalOpen(true); // This will trigger the useEffect for printing
       } else {
         toast({
           title: 'Erro',
@@ -46,22 +67,20 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       setGeneratedTicket(null);
     }, 300);
   }, []);
-
-  const handlePrint = useCallback(() => {
-    // This timeout is crucial. It waits for the next "tick" of the browser's
-    // event loop, giving React enough time to render the PrintableTicket
-    // component before the print dialog is opened.
-    setTimeout(() => {
-        window.print();
-    }, 50);
-  }, []);
-
-  // This effect triggers the print dialog
+  
+  // This effect triggers the print dialog once the modal is open and the ticket is ready
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
-      handlePrint();
+      // This timeout is crucial. It waits for the browser's next event loop "tick",
+      // giving React enough time to render both the modal and the printable area
+      // before the print dialog is opened.
+      const timer = setTimeout(() => {
+        window.print();
+      }, 100); // 100ms is a safe delay
+      
+      return () => clearTimeout(timer);
     }
-  }, [isModalOpen, generatedTicket, handlePrint]);
+  }, [isModalOpen, generatedTicket]);
   
   // This effect handles closing the modal after the print dialog is interacted with.
   useEffect(() => {
@@ -75,8 +94,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
 
     window.addEventListener('afterprint', handleAfterPrint);
     
-    // Some browsers don't fire 'afterprint' if the user cancels.
-    // This is a fallback to ensure the modal closes regardless.
+    // Fallback for browsers that might not fire 'afterprint' if the user cancels.
     const fallbackTimeout = setTimeout(() => {
         if(isModalOpen) {
             closeModal();
@@ -136,11 +154,9 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
         </DialogContent>
       </Dialog>
       
-      {generatedTicket && (
-        <div className="printable-area">
-          <PrintableTicket ticket={generatedTicket} />
-        </div>
-      )}
+      <div className="printable-area">
+        <PrintableTicket ticket={generatedTicket} />
+      </div>
     </>
   );
 }
