@@ -2,7 +2,7 @@
 'use client';
 
 import type { ButtonConfig, Ticket } from '@/lib/types';
-import { useState, useTransition, useEffect, useRef } from 'react';
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react';
 import { generateTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -40,24 +40,44 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
     });
   };
 
-  useEffect(() => {
-    if (isModalOpen && generatedTicket) {
-      // Small delay to allow the modal and printable content to render
-      const timer = setTimeout(() => {
-        window.print();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isModalOpen, generatedTicket]);
-
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setGeneratedTicket(null);
-  }
+  }, []);
+
+  useEffect(() => {
+    const handlePrint = () => {
+      setTimeout(() => {
+        window.print();
+      }, 500); // Increased delay to ensure rendering
+    };
+    
+    const handleAfterPrint = () => {
+      closeModal();
+    };
+
+    if (isModalOpen && generatedTicket) {
+      window.addEventListener('afterprint', handleAfterPrint);
+      handlePrint();
+      
+      // Fallback to close modal if user cancels print dialog
+      const cancelPrintTimeout = setTimeout(() => {
+         if(isModalOpen){
+            closeModal();
+         }
+      }, 3000);
+
+      return () => {
+        window.removeEventListener('afterprint', handleAfterPrint);
+        clearTimeout(cancelPrintTimeout);
+      };
+    }
+  }, [isModalOpen, generatedTicket, closeModal]);
+
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 h-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 h-full not-printable">
         {buttons.map((btn) => (
           <button
             key={btn.id}
@@ -79,14 +99,14 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       </div>
       
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px] text-center p-8 not-printable" onPointerDownOutside={closeModal}>
+        <DialogContent className="sm:max-w-[425px] text-center p-8 not-printable" onPointerDownOutside={closeModal} onEscapeKeyDown={closeModal}>
           <DialogHeader>
             <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit mb-4">
               <TicketIcon className="h-12 w-12 text-primary" />
             </div>
             <DialogTitle className="text-2xl font-headline">Sua Senha foi Gerada!</DialogTitle>
             <DialogDescription>
-              Aguarde ser chamado. Guarde sua senha.
+              Aguarde ser chamado. Sua senha está sendo impressa.
             </DialogDescription>
           </DialogHeader>
           <div className="my-6">
