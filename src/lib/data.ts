@@ -2,9 +2,10 @@
 'use server';
 import type { AppSettings, Ticket, DashboardStats, DailyQueue, ButtonConfig } from './types';
 import { firestore } from './firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc, updateDoc, collectionGroup } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
-
+import type { DateRange } from 'react-day-picker';
+import { format, startOfDay, endOfDay } from 'date-fns';
 
 // --- Firestore Document References ---
 const settingsDocRef = doc(firestore, 'app/settings');
@@ -131,17 +132,14 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
     const ticketDocRef = doc(getTicketsCollectionRef(), newTicket.id);
     transaction.set(ticketDocRef, newTicket);
     
+    const dataToSet: Partial<DailyQueue> = { sequenceCounters };
     if (!todayDoc.exists()) {
-        const newQueue: Partial<DailyQueue> = {
-            lastCalled: null,
-            callHistory: [],
-            callCounters: Object.fromEntries(settings.buttons.map(b => [b.id, 0])),
-            sequenceCounters: sequenceCounters,
-        };
-        transaction.set(todayDocRef, newQueue);
-    } else {
-        transaction.set(todayDocRef, { sequenceCounters }, { merge: true });
+        dataToSet.lastCalled = null;
+        dataToSet.callHistory = [];
+        dataToSet.callCounters = Object.fromEntries(settings.buttons.map(b => [b.id, 0]));
     }
+    
+    transaction.set(todayDocRef, dataToSet, { merge: true });
   });
 
   if (!newTicket) {
@@ -294,17 +292,35 @@ export async function getPendingTickets(): Promise<Ticket[]> {
     return tickets;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(dateRange?: DateRange): Promise<DashboardStats> {
   const settings = await getSettings();
   
-  const ticketsSnap = await getDocs(getTicketsCollectionRef());
-  const allTicketsToday = ticketsSnap.docs.map(d => d.data() as Ticket);
+  let allTickets: Ticket[] = [];
 
-  const calledToday = allTicketsToday.filter(t => t.called);
-  const waiting = allTicketsToday.filter(t => !t.called);
+  // If no date range, get today's tickets. Otherwise, query across the range.
+  if (!dateRange || !dateRange.from) {
+      const ticketsSnap = await getDocs(getTicketsCollectionRef());
+      allTickets = ticketsSnap.docs.map(d => d.data() as Ticket);
+  } else {
+      const startDate = startOfDay(dateRange.from);
+      // If no 'to' date, use the same day.
+      const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+      
+      const q = query(
+          collectionGroup(firestore, 'tickets'), 
+          where('timestamp', '>=', startDate.toISOString()),
+          where('timestamp', '<=', endDate.toISOString())
+      );
+      const ticketsSnap = await getDocs(q);
+      allTickets = ticketsSnap.docs.map(doc => doc.data() as Ticket);
+  }
+
+
+  const calledTickets = allTickets.filter(t => t.called);
+  const waitingTickets = allTickets.filter(t => !t.called);
 
   const ticketsByType = settings.buttons.map(button => {
-    const count = allTicketsToday.filter(t => t.type === button.id).length;
+    const count = allTickets.filter(t => t.type === button.id).length;
     return {
       name: button.name,
       count: count,
@@ -313,18 +329,18 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   });
   
   const calledByCounterMap: { [key: number]: number } = {};
-  calledToday.forEach(ticket => {
+  calledTickets.forEach(ticket => {
     if (ticket.counter) {
         calledByCounterMap[ticket.counter] = (calledByCounterMap[ticket.counter] || 0) + 1;
     }
   });
 
   const chartColors = [
-    'hsl(12, 76%, 61%)',
-    'hsl(173, 58%, 39%)',
-    'hsl(197, 37%, 24%)',
-    'hsl(43, 74%, 66%)',
-    'hsl(27, 87%, 67%)',
+    'hsl(var(--chart-1))',
+    'hsl(var(--chart-2))',
+    'hsl(var(--chart-3))',
+    'hsl(var(--chart-4))',
+    'hsl(var(--chart-5))',
   ];
 
   const ticketsByCounter = Object.entries(calledByCounterMap)
@@ -337,9 +353,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 
   return {
-    totalIssued: allTicketsToday.length,
-    totalCalled: calledToday.length,
-    waitingCount: waiting.length,
+    totalIssued: allTickets.length,
+    totalCalled: calledTickets.length,
+    waitingCount: waitingTickets.length,
     ticketsByType,
     ticketsByCounter,
   };

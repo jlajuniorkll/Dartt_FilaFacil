@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -76,5 +77,25 @@ h1, h2, h3, h4, h5, h6 {
   
   label[data-state='checked'] {
     @apply border-primary bg-primary/10 text-primary;
+  }
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  header, .noprint {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .printable {
+    display: block;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+    border: none !important;
   }
 }
