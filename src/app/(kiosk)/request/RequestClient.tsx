@@ -16,8 +16,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, Ticket as TicketIcon } from 'lucide-react';
 
-// This is the new printable ticket component, directly inside the client file for simplicity.
-function PrintableTicket({ ticket }: { ticket: Ticket | null }) {
+// A lógica do PrintableTicket foi movida para cá para simplificar e garantir a renderização.
+function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
   if (!ticket) return null;
 
   return (
@@ -49,7 +49,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       const result = await generateTicket(buttonId);
       if (result.success && result.ticket) {
         setGeneratedTicket(result.ticket);
-        setIsModalOpen(true); // This will trigger the useEffect for printing
+        setIsModalOpen(true);
       } else {
         toast({
           title: 'Erro',
@@ -62,27 +62,27 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    // Delay resetting the ticket to avoid flicker during modal close animation
+    // Delay para animação de fechamento do modal
     setTimeout(() => {
       setGeneratedTicket(null);
     }, 300);
   }, []);
-  
-  // This effect triggers the print dialog once the modal is open and the ticket is ready
+
+  // Efeito para acionar a impressão.
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
-      // This timeout is crucial. It waits for the browser's next event loop "tick",
-      // giving React enough time to render both the modal and the printable area
-      // before the print dialog is opened.
+      // O timeout é crucial. Ele adia a chamada de impressão para o próximo
+      // ciclo de eventos do navegador, garantindo que o React tenha renderizado
+      // o conteúdo antes que o navegador tente imprimi-lo.
       const timer = setTimeout(() => {
         window.print();
-      }, 100); // 100ms is a safe delay
-      
+      }, 100); // 100ms é um delay seguro.
+
       return () => clearTimeout(timer);
     }
   }, [isModalOpen, generatedTicket]);
-  
-  // This effect handles closing the modal after the print dialog is interacted with.
+
+  // Efeito para fechar o modal após a impressão (ou cancelamento).
   useEffect(() => {
     if (!isModalOpen) {
       return;
@@ -93,13 +93,14 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
     };
 
     window.addEventListener('afterprint', handleAfterPrint);
-    
-    // Fallback for browsers that might not fire 'afterprint' if the user cancels.
+
+    // Um fallback para fechar o modal caso o evento 'afterprint' não dispare
+    // (ex: o usuário fecha a aba ou cancela a impressão em alguns navegadores).
     const fallbackTimeout = setTimeout(() => {
-        if(isModalOpen) {
-            closeModal();
-        }
-    }, 5000); // 5 seconds
+      if (isModalOpen) {
+        closeModal();
+      }
+    }, 5000); // Fecha após 5 segundos.
 
     return () => {
       window.removeEventListener('afterprint', handleAfterPrint);
@@ -132,7 +133,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       </div>
       
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px] text-center p-8 not-printable" onPointerDownOutside={(e) => { e.preventDefault(); closeModal(); }} onEscapeKeyDown={closeModal}>
+        <DialogContent className="sm:max-w-[425px] text-center p-8 not-printable" onPointerDownOutside={closeModal} onEscapeKeyDown={closeModal}>
           <DialogHeader>
             <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit mb-4">
               <TicketIcon className="h-12 w-12 text-primary" />
@@ -155,7 +156,7 @@ export default function RequestClient({ buttons }: { buttons: ButtonConfig[] }) 
       </Dialog>
       
       <div className="printable-area">
-        <PrintableTicket ticket={generatedTicket} />
+        <PrintableTicketContent ticket={generatedTicket} />
       </div>
     </>
   );
