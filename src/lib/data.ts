@@ -89,20 +89,20 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
 
   await runTransaction(firestore, async (transaction) => {
     const todayDoc = await transaction.get(todayDocRef);
-    let sequenceCounters: { [key: string]: number } = {};
-
-    // Helper to determine the correct initial number for a sequence
+    
+    // Determine the initial sequence value if a counter doesn't exist.
     const getInitialSequenceValue = (btn: ButtonConfig) => {
+        // For automatic, start at 0 so the first ticket is 1.
+        // For manual, start at the number before the desired startNumber.
         return btn.automaticNumbering ? 0 : (btn.startNumber || 1) - 1;
     };
 
-    if (!todayDoc.exists()) {
-        // If doc doesn't exist, initialize all counters based on their settings
-        settings.buttons.forEach(btn => {
-            sequenceCounters[btn.id] = getInitialSequenceValue(btn);
-        });
+    let sequenceCounters: { [key: string]: number };
+    if (!todayDoc.exists() || !todayDoc.data().sequenceCounters) {
+        // If doc doesn't exist, or sequenceCounters field is missing, initialize all counters.
+        sequenceCounters = Object.fromEntries(settings.buttons.map(btn => [btn.id, getInitialSequenceValue(btn)]));
     } else {
-        // If doc exists, load existing counters, or initialize if not present
+        // If doc exists, load existing counters, ensuring all buttons have an entry.
         const existingData = todayDoc.data();
         sequenceCounters = existingData.sequenceCounters || {};
         settings.buttons.forEach(btn => {
@@ -114,7 +114,8 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
 
     let currentSequence = sequenceCounters[buttonId];
     
-    // If not automatic, check if the current sequence is less than the desired start number
+    // If not automatic, ensure the current sequence is at least the desired start number.
+    // This handles changing the start number mid-day.
     if (!button.automaticNumbering && button.startNumber) {
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
@@ -158,6 +159,7 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
   revalidatePath('/dashboard', 'page');
   return newTicket;
 }
+
 
 async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefined, isRepeat = false): Promise<Ticket | null> {
     const todayDocRef = getTodayDocRef();

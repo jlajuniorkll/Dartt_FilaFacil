@@ -222,9 +222,9 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
                             render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                                 <div className="space-y-0.5">
-                                <FormLabel>Numeração Automática (inicia em 1)</FormLabel>
+                                <FormLabel>Numeração Automática</FormLabel>
                                 <FormDescription>
-                                    Se ativo, a contagem reinicia em 1 todo dia. Se inativo, usa o número inicial definido abaixo.
+                                    Se ativo, a contagem reinicia em 1 todo dia. Se inativo, usa o número inicial personalizado.
                                 </FormDescription>
                                 </div>
                                 <FormControl>
@@ -241,7 +241,7 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
                             <FormItem>
                               <FormLabel>Número Inicial Personalizado</FormLabel>
                               <FormControl><Input type="number" min="1" {...field} /></FormControl>
-                               <FormDescription>A contagem de senhas deste tipo iniciará neste número a cada dia.</FormDescription>
+                               <FormDescription>A contagem de senhas deste tipo iniciará neste número.</FormDescription>
                               <FormMessage />
                             </FormItem>
                           )} />
