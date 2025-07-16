@@ -8,7 +8,7 @@ import { getDashboardStats } from '@/lib/data';
 import type { DashboardStats } from '@/lib/types';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Ticket, PhoneOutgoing, Clock } from 'lucide-react';
 
 function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }) {
@@ -70,7 +70,11 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
                        }}
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Total Emitido" />
+                    <Bar dataKey="count" name="Total Emitido">
+                        {initialStats.ticketsByType.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -95,7 +99,11 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
                        }}
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Total Chamado" fill="var(--color-fill)" />
+                    <Bar dataKey="count" name="Total Chamado">
+                        {initialStats.ticketsByCounter.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
