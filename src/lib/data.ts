@@ -115,8 +115,6 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
     let currentSequence = sequenceCounters[buttonId] ?? getInitialSequenceValue(button);
     
     if (!button.automaticNumbering && button.startNumber) {
-        // If the current sequence is less than the desired manual start number, reset it.
-        // This handles the case where it was automatic before and now it's manual.
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
         }
@@ -320,7 +318,7 @@ async function getTicketsInDateRange(dateRange: DateRange): Promise<Ticket[]> {
     }
 
     const startDate = startOfDay(dateRange.from);
-    const endDate = dateRange.to ? endOfDay(dateRange.to) : startDate;
+    const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
 
     if (startDate > endDate) {
         return [];
@@ -459,4 +457,5 @@ export async function resetSequenceCounters(): Promise<void> {
         sequenceCounters: initialSequenceCounters,
     });
 }
+
 
