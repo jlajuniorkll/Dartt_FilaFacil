@@ -61,25 +61,37 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
   
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    // Allow animation to finish before clearing ticket data
-    setTimeout(() => {
-      setGeneratedTicket(null);
-    }, 300);
   }, []);
 
   // Effect to trigger print when modal opens with a ticket
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
+      // Use a timeout to allow the DOM to update before printing
       const timer = setTimeout(() => {
-        window.print();
-      }, 100); // Small delay to ensure DOM is updated
+        try {
+          window.print();
+        } catch (e) {
+          console.error("Print failed:", e);
+           toast({
+            title: 'Impressão Falhou',
+            description: 'Não foi possível acionar a impressão. Verifique as permissões do navegador.',
+            variant: 'destructive',
+          });
+        }
+      }, 100); 
       return () => clearTimeout(timer);
     }
-  }, [isModalOpen, generatedTicket]);
+  }, [isModalOpen, generatedTicket, toast]);
 
-  // Effect to handle closing the modal after printing
+  // Effect to handle closing the modal after printing (or cancellation)
   useEffect(() => {
-    if (!isModalOpen) return;
+    if (!isModalOpen) {
+       // Allow animation to finish before clearing ticket data
+        setTimeout(() => {
+            setGeneratedTicket(null);
+        }, 300);
+        return;
+    }
 
     const handleAfterPrint = () => {
         closeModal();
@@ -87,12 +99,12 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
 
     window.addEventListener('afterprint', handleAfterPrint);
     
-    // Fallback in case the user cancels the print dialog
+    // Fallback in case the user cancels the print dialog or the event doesn't fire
     const fallbackTimeout = setTimeout(() => {
       if(isModalOpen) {
           closeModal();
       }
-    }, 5000); // Close modal after 5 seconds if print dialog is left open
+    }, 5000); // Close modal after 5 seconds
 
     return () => {
       window.removeEventListener('afterprint', handleAfterPrint);
