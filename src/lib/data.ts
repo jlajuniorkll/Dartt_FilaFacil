@@ -5,16 +5,20 @@ import { firestore } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc, updateDoc, collectionGroup } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { DateRange } from 'react-day-picker';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 
 // --- Firestore Document References ---
 const settingsDocRef = doc(firestore, 'app/settings');
-const getTodayDocRef = () => {
+const getDailyDocRef = (date: Date) => {
     // Format: YYYY-MM-DD
-    const today = new Date().toISOString().split('T')[0];
-    return doc(firestore, `dailyQueues/${today}`);
+    const dateString = date.toISOString().split('T')[0];
+    return doc(firestore, `dailyQueues/${dateString}`);
 }
-const getTicketsCollectionRef = () => collection(getTodayDocRef(), 'tickets');
+const getTodayDocRef = () => getDailyDocRef(new Date());
+
+const getTicketsCollectionRefForDate = (date: Date) => collection(getDailyDocRef(date), 'tickets');
+const getTicketsCollectionRef = () => getTicketsCollectionRefForDate(new Date());
+
 
 const initialSettings: AppSettings = {
   buttons: [
@@ -108,8 +112,9 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
         });
     }
 
-    let currentSequence = sequenceCounters[buttonId];
+    let currentSequence = sequenceCounters[buttonId] ?? getInitialSequenceValue(button);
     
+    // If not automatic, ensure sequence is at least the start number.
     if (!button.automaticNumbering && button.startNumber) {
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
@@ -297,22 +302,27 @@ export async function getDashboardStats(dateRange?: DateRange): Promise<Dashboar
   
   let allTickets: Ticket[] = [];
 
-  // If no date range, get today's tickets. Otherwise, query across the range.
   if (!dateRange || !dateRange.from) {
       const ticketsSnap = await getDocs(getTicketsCollectionRef());
       allTickets = ticketsSnap.docs.map(d => d.data() as Ticket);
   } else {
       const startDate = startOfDay(dateRange.from);
-      // If no 'to' date, use the same day.
       const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
       
-      const q = query(
-          collectionGroup(firestore, 'tickets'), 
-          where('timestamp', '>=', startDate.toISOString()),
-          where('timestamp', '<=', endDate.toISOString())
-      );
-      const ticketsSnap = await getDocs(q);
-      allTickets = ticketsSnap.docs.map(doc => doc.data() as Ticket);
+      const intervalDays = eachDayOfInterval({ start: startDate, end: endDate });
+      
+      const ticketPromises = intervalDays.map(day => {
+          const ticketsColRef = getTicketsCollectionRefForDate(day);
+          return getDocs(ticketsColRef);
+      });
+      
+      const ticketSnapshots = await Promise.all(ticketPromises);
+      
+      ticketSnapshots.forEach(snapshot => {
+          snapshot.forEach(doc => {
+              allTickets.push(doc.data() as Ticket);
+          });
+      });
   }
 
 
