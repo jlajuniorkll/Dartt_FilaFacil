@@ -118,7 +118,11 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
         }
+    } else if (button.automaticNumbering) {
+        // Always continue the sequence for the day if automatic
+        currentSequence = sequenceCounters[buttonId] || 0;
     }
+
 
     const newNumber = currentSequence + 1;
     sequenceCounters[buttonId] = newNumber;
@@ -310,29 +314,30 @@ function formatDuration(totalSeconds: number): string {
 }
 
 async function getTicketsInDateRange(dateRange: DateRange): Promise<Ticket[]> {
-    if (!dateRange || !dateRange.from) return [];
-
+    if (!dateRange.from) return [];
+  
     const startDate = startOfDay(dateRange.from);
+    // Ensure the end date covers the entire day
     const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-
+  
     if (startDate > endDate) return [];
-    
+  
     const intervalDays = eachDayOfInterval({ start: startDate, end: endDate });
-
+  
     const ticketPromises = intervalDays.map(day => {
-        const ticketsCollectionRef = getTicketsCollectionRefForDate(day);
-        return getDocs(ticketsCollectionRef);
+      const ticketsCollectionRef = getTicketsCollectionRefForDate(day);
+      return getDocs(ticketsCollectionRef);
     });
-    
+  
     const ticketSnapshots = await Promise.all(ticketPromises);
-    
+  
     const allTickets: Ticket[] = [];
     ticketSnapshots.forEach(snapshot => {
-        snapshot.forEach(doc => {
-            allTickets.push(doc.data() as Ticket);
-        });
+      snapshot.forEach(doc => {
+        allTickets.push(doc.data() as Ticket);
+      });
     });
-
+  
     return allTickets;
 }
 
@@ -376,15 +381,15 @@ export async function getDashboardStats(dateRange: DateRange): Promise<Dashboard
   // --- Calculations for "now" (estimated wait time) ---
   const todaysWaitingTickets = await getPendingTickets();
   
-  const todaysTicketsCollectionRef = getTicketsCollectionRefForDate(new Date());
-  const todaysCalledQuery = query(todaysTicketsCollectionRef, where("called", "==", true));
-  const todaysCalledTicketsSnap = await getDocs(todaysCalledQuery);
-  const todaysCalledTickets = todaysCalledTicketsSnap.docs.map(d => d.data() as Ticket);
-
-
+  // Get today's tickets from the already fetched period tickets if possible
+  const todayString = new Date().toISOString().split('T')[0];
+  const todaysCalledTickets = allTicketsForPeriod.filter(t => t.called && t.calledAt && t.timestamp.startsWith(todayString));
+  
   let totalServiceSecondsToday = 0;
   todaysCalledTickets.forEach(t => {
-      totalServiceSecondsToday += differenceInSeconds(new Date(t.calledAt!), new Date(t.timestamp));
+      if (t.calledAt) { // Ensure calledAt exists
+          totalServiceSecondsToday += differenceInSeconds(new Date(t.calledAt), new Date(t.timestamp));
+      }
   });
   const averageServiceTimeToday = todaysCalledTickets.length > 0 ? totalServiceSecondsToday / todaysCalledTickets.length : 0;
   const estimatedWaitSeconds = averageServiceTimeToday * todaysWaitingTickets.length;
