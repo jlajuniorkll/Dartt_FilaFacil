@@ -80,32 +80,41 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+.printable-area {
+  display: none;
+}
+
 @media print {
   body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  header, footer, .not-printable {
-    display: none !important;
-  }
+
+  /* Hide everything on screen */
   body * {
     visibility: hidden;
   }
+  
+  .not-printable {
+    display: none !important;
+  }
+
+  /* Show only the printable area and its contents */
   .printable-area, .printable-area * {
     visibility: visible;
   }
+
+  /* Position the printable area to take up the whole page */
   .printable-area {
+    display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
   }
+  
   @page {
     size: 80mm auto; /* Example size for thermal printers */
     margin: 0;
   }
-}
-
-.printable-area {
-    display: none;
 }

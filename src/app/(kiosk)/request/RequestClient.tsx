@@ -61,6 +61,10 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
   
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
+    // Give time for the modal to animate out before clearing the ticket
+    setTimeout(() => {
+        setGeneratedTicket(null);
+    }, 300);
   }, []);
 
   // Effect to trigger print when modal opens with a ticket
@@ -86,10 +90,6 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
   // Effect to handle closing the modal after printing (or cancellation)
   useEffect(() => {
     if (!isModalOpen) {
-       // Allow animation to finish before clearing ticket data
-        setTimeout(() => {
-            setGeneratedTicket(null);
-        }, 300);
         return;
     }
 
@@ -104,7 +104,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
       if(isModalOpen) {
           closeModal();
       }
-    }, 5000); // Close modal after 5 seconds
+    }, 5000); // Close modal after 5 seconds if it's still open
 
     return () => {
       window.removeEventListener('afterprint', handleAfterPrint);
