@@ -102,22 +102,22 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
             sequenceCounters[btn.id] = getInitialSequenceValue(btn);
         });
     } else {
-        // If doc exists, load existing counters
-        sequenceCounters = todayDoc.data().sequenceCounters || {};
+        // If doc exists, load existing counters, or initialize if not present
+        const existingData = todayDoc.data();
+        sequenceCounters = existingData.sequenceCounters || {};
+        settings.buttons.forEach(btn => {
+            if (sequenceCounters[btn.id] === undefined) {
+                sequenceCounters[btn.id] = getInitialSequenceValue(btn);
+            }
+        });
     }
 
-    // Ensure a counter exists for the button being pressed
-    if (sequenceCounters[buttonId] === undefined) {
-      sequenceCounters[buttonId] = getInitialSequenceValue(button);
-    }
-    
     let currentSequence = sequenceCounters[buttonId];
     
     // If not automatic, check if the current sequence is less than the desired start number
-    if (!button.automaticNumbering) {
-        const startNumber = (button.startNumber || 1);
-        if (currentSequence < startNumber -1) {
-            currentSequence = startNumber - 1;
+    if (!button.automaticNumbering && button.startNumber) {
+        if (currentSequence < (button.startNumber - 1)) {
+            currentSequence = button.startNumber - 1;
         }
     }
 
@@ -136,7 +136,18 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
 
     const ticketDocRef = doc(getTicketsCollectionRef(), newTicket.id);
     transaction.set(ticketDocRef, newTicket);
-    transaction.set(todayDocRef, { sequenceCounters }, { merge: true });
+    
+    if (!todayDoc.exists()) {
+        const newQueue: Partial<DailyQueue> = {
+            lastCalled: null,
+            callHistory: [],
+            callCounters: Object.fromEntries(settings.buttons.map(b => [b.id, 0])),
+            sequenceCounters: sequenceCounters,
+        };
+        transaction.set(todayDocRef, newQueue);
+    } else {
+        transaction.set(todayDocRef, { sequenceCounters }, { merge: true });
+    }
   });
 
   if (!newTicket) {
@@ -173,7 +184,8 @@ async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefi
             transaction.update(ticketDocRef, { called: true, calledAt: updatedTicketData.calledAt, counter });
         }
         
-        const newHistory = [updatedTicketData, ...queueData.callHistory.filter(t => t.id !== updatedTicketData.id)].slice(0, 10);
+        const currentHistory = queueData.callHistory || [];
+        const newHistory = [updatedTicketData, ...currentHistory.filter(t => t.id !== updatedTicketData.id)].slice(0, 10);
         
         transaction.update(todayDocRef, {
             lastCalled: updatedTicketData,
@@ -273,7 +285,7 @@ export async function getQueueStatus(): Promise<{ lastCalled: Ticket | null, his
   const todaysQueue = await getTodaysQueue();
   return {
     lastCalled: todaysQueue.lastCalled,
-    history: todaysQueue.callHistory,
+    history: todaysQueue.callHistory || [],
     videos: settings.youtubeUrls,
   };
 }
