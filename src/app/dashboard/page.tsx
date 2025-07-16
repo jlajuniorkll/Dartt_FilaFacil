@@ -99,8 +99,8 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
                        }}
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Total Chamado">
-                        {initialStats.ticketsByCounter.map((entry, index) => (
+                    <Bar dataKey="count" name="Total Chamado" fill="hsl(var(--primary))">
+                       {initialStats.ticketsByCounter.map((entry, index) => (
                            <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
                     </Bar>

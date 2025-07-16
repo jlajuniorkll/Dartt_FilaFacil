@@ -319,11 +319,19 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     }
   });
 
+  const chartColors = [
+    'hsl(12, 76%, 61%)',
+    'hsl(173, 58%, 39%)',
+    'hsl(197, 37%, 24%)',
+    'hsl(43, 74%, 66%)',
+    'hsl(27, 87%, 67%)',
+  ];
+
   const ticketsByCounter = Object.entries(calledByCounterMap)
     .map(([counter, count], index) => ({
         counter: `Guichê ${counter}`,
         count,
-        fill: `var(--chart-${(index % 5) + 1})`
+        fill: chartColors[index % chartColors.length]
     }))
     .sort((a,b) => a.counter.localeCompare(b.counter));
 
