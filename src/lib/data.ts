@@ -17,8 +17,8 @@ const getTicketsCollectionRef = () => collection(getTodayDocRef(), 'tickets');
 
 const initialSettings: AppSettings = {
   buttons: [
-    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, startNumber: 1, color: '#5DADE2', textColor: '#FFFFFF' },
-    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, startNumber: 1, color: '#F39C12', textColor: '#FFFFFF' },
+    { id: 'btn-1', name: 'Preferencial', prefix: 'P', priority: 1, frequency: 2, automaticNumbering: true, startNumber: 1, color: '#5DADE2', textColor: '#FFFFFF' },
+    { id: 'btn-2', name: 'Normal', prefix: 'N', priority: 2, frequency: 1, automaticNumbering: true, startNumber: 1, color: '#F39C12', textColor: '#FFFFFF' },
   ],
   youtubeUrls: [
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -35,7 +35,12 @@ export async function getSettings(): Promise<AppSettings> {
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
       const dbSettings = docSnap.data();
-      return { ...initialSettings, ...dbSettings } as AppSettings;
+      // Ensure all buttons have the new automaticNumbering field
+      const buttons = (dbSettings.buttons || []).map((b: any) => ({
+        ...b,
+        automaticNumbering: b.automaticNumbering ?? true,
+      }));
+      return { ...initialSettings, ...dbSettings, buttons } as AppSettings;
     } else {
       await setDoc(settingsDocRef, initialSettings);
       return initialSettings;
@@ -86,22 +91,27 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
     const todayDoc = await transaction.get(todayDocRef);
     let sequenceCounters: { [key: string]: number } = {};
 
+    // Determine the correct starting number based on the switch
+    const getStartNumber = (btn: typeof button) => {
+        return btn.automaticNumbering ? 0 : (btn.startNumber || 1) - 1;
+    };
+
     if (!todayDoc.exists()) {
-        // Initialize for all buttons with their start numbers if doc doesn't exist
+        // Initialize for all buttons with their correct start numbers if doc doesn't exist
         settings.buttons.forEach(btn => {
-            sequenceCounters[btn.id] = (btn.startNumber || 1) - 1;
+            sequenceCounters[btn.id] = getStartNumber(btn);
         });
     } else {
         sequenceCounters = todayDoc.data().sequenceCounters || {};
         // Ensure all buttons from settings have a counter, initialize if missing
         settings.buttons.forEach(btn => {
             if (sequenceCounters[btn.id] === undefined) {
-                sequenceCounters[btn.id] = (btn.startNumber || 1) - 1;
+                 sequenceCounters[btn.id] = getStartNumber(btn);
             }
         });
     }
 
-    const currentNumber = (sequenceCounters[buttonId] || (button.startNumber || 1) - 1) + 1;
+    const currentNumber = (sequenceCounters[buttonId] || getStartNumber(button)) + 1;
     sequenceCounters[buttonId] = currentNumber;
     
     newTicket = {
@@ -307,11 +317,16 @@ export async function resetQueue(): Promise<void> {
 
     // Reset the daily queue document itself
     const settings = await getSettings();
+    
+    const getStartNumber = (btn: any) => {
+        return btn.automaticNumbering ? 0 : (btn.startNumber || 1) - 1;
+    };
+
     const newQueue: DailyQueue = {
         lastCalled: null,
         callHistory: [],
         callCounters: Object.fromEntries(settings.buttons.map(b => [b.id, 0])),
-        sequenceCounters: Object.fromEntries(settings.buttons.map(b => [b.id, (b.startNumber || 1) -1 ])),
+        sequenceCounters: Object.fromEntries(settings.buttons.map(b => [b.id, getStartNumber(b)])),
     };
     batch.set(todayDocRef, newQueue);
 

@@ -39,7 +39,8 @@ const settingsSchema = z.object({
       frequency: z.coerce.number().min(1, 'Frequência deve ser no mínimo 1'),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
       textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
-      startNumber: z.coerce.number().min(1, 'O número inicial deve ser no mínimo 1.'),
+      automaticNumbering: z.boolean().default(true),
+      startNumber: z.coerce.number().min(1, 'O número inicial deve ser no mínimo 1.').optional(),
       associatedCounters: z.string().optional(),
     })
   ),
@@ -62,6 +63,7 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
         ...b,
         priority: Number(b.priority),
         frequency: Number(b.frequency),
+        automaticNumbering: b.automaticNumbering ?? true,
         startNumber: b.startNumber || 1,
         associatedCounters: b.associatedCounters || ''
       })),
@@ -69,6 +71,8 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
       totalCounters: initialSettings.totalCounters || 0,
     },
   });
+  
+  const watchedButtons = form.watch('buttons');
 
   const { fields: buttonFields, append: appendButton, remove: removeButton } = useFieldArray({
     control: form.control,
@@ -86,6 +90,10 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
         ...data,
         youtubeUrls: data.youtubeUrls.map(urlObj => urlObj.value),
         counterConfiguration: 'none',
+        buttons: data.buttons.map(b => ({
+          ...b,
+          startNumber: b.startNumber || 1
+        })),
       };
       const result = await updateSettings(formattedData);
       if (result.success) {
@@ -185,15 +193,39 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
                         <FormMessage />
                       </FormItem>
                     )} />
-                     <FormField control={form.control} name={`buttons.${index}.startNumber`} render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número Inicial</FormLabel>
-                        <FormControl><Input type="number" min="1" {...field} /></FormControl>
-                         <FormDescription>A contagem de senhas deste tipo iniciará neste número a cada dia.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <div />
+                     <div className="md:col-span-2 space-y-4">
+                        <FormField
+                            control={form.control}
+                            name={`buttons.${index}.automaticNumbering`}
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                <FormLabel>Numeração Automática (inicia em 1)</FormLabel>
+                                <FormDescription>
+                                    Se ativo, a contagem reinicia em 1 todo dia. Se inativo, usa o número inicial definido abaixo.
+                                </FormDescription>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                        {watchedButtons[index] && !watchedButtons[index].automaticNumbering && (
+                           <FormField control={form.control} name={`buttons.${index}.startNumber`} render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Número Inicial Personalizado</FormLabel>
+                              <FormControl><Input type="number" min="1" {...field} /></FormControl>
+                               <FormDescription>A contagem de senhas deste tipo iniciará neste número a cada dia.</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        )}
+                    </div>
+                    
                     <FormField control={form.control} name={`buttons.${index}.color`} render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cor do Botão</FormLabel>
@@ -216,7 +248,7 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
                   </Button>
                 </div>
               ))}
-              <Button type="button" variant="outline" onClick={() => appendButton({ id: `btn-${Date.now()}`, name: '', prefix: '', priority: buttonFields.length + 1, frequency: 1, startNumber: 1, color: '#5DADE2', textColor: '#FFFFFF', associatedCounters: '' })}>
+              <Button type="button" variant="outline" onClick={() => appendButton({ id: `btn-${Date.now()}`, name: '', prefix: '', priority: buttonFields.length + 1, frequency: 1, automaticNumbering: true, startNumber: 1, color: '#5DADE2', textColor: '#FFFFFF', associatedCounters: '' })}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Tipo de Senha
               </Button>
             </div>

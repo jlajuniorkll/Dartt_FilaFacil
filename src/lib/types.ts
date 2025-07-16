@@ -5,7 +5,8 @@ export interface ButtonConfig {
   prefix: string;
   priority: number;
   frequency: number;
-  startNumber: number;
+  automaticNumbering: boolean;
+  startNumber?: number;
   color: string;
   textColor: string;
   associatedCounters?: string;
