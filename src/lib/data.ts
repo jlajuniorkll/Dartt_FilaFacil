@@ -5,7 +5,7 @@ import { firestore } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc, updateDoc, collectionGroup } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { DateRange } from 'react-day-picker';
-import { format, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
+import { format, startOfDay, endOfDay, eachDayOfInterval, differenceInSeconds } from 'date-fns';
 
 // --- Firestore Document References ---
 const settingsDocRef = doc(firestore, 'app/settings');
@@ -114,7 +114,6 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
 
     let currentSequence = sequenceCounters[buttonId] ?? getInitialSequenceValue(button);
     
-    // If not automatic, ensure sequence is at least the start number.
     if (!button.automaticNumbering && button.startNumber) {
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
@@ -190,7 +189,6 @@ async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefi
             callHistory: newHistory,
         });
 
-        // This is to pass the updated ticket out of the transaction
         ticketToCall = updatedTicketData;
     });
     
@@ -205,7 +203,7 @@ async function markTicketAsCalled(ticketToCall: Ticket, counter: number | undefi
 export async function callNextTicket(counter: number): Promise<Ticket | null> {
   const settings = await getSettings();
   const todaysQueue = await getTodaysQueue();
-  const pendingTickets = await getPendingTickets(); // This already gets them sorted
+  const pendingTickets = await getPendingTickets(); 
   
   if (pendingTickets.length === 0) return null;
 
@@ -242,12 +240,10 @@ export async function callNextTicket(counter: number): Promise<Ticket | null> {
           }
       }
       
-      // Fallback to oldest ticket if logic doesn't find one but tickets exist
       if(!ticketToCall && pendingTickets.length > 0) {
         ticketToCall = pendingTickets[0];
       }
       
-      // Persist updated call counters
       await setDoc(getTodayDocRef(), { callCounters }, { merge: true });
 
   } else {
@@ -292,67 +288,80 @@ export async function getPendingTickets(): Promise<Ticket[]> {
     const ticketsQuery = query(getTicketsCollectionRef(), where("called", "==", false));
     const pendingTicketsSnap = await getDocs(ticketsQuery);
     const tickets = pendingTicketsSnap.docs.map(d => d.data() as Ticket);
-    // Sort in application code instead of query
     tickets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     return tickets;
 }
 
-export async function getDashboardStats(dateRange?: DateRange): Promise<DashboardStats> {
+
+// --- Dashboard & Reporting ---
+
+function formatDuration(totalSeconds: number): string {
+  if (isNaN(totalSeconds) || totalSeconds < 0) return 'N/A';
+  if (totalSeconds === 0) return "0s";
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  
+  let result = '';
+  if (hours > 0) result += `${hours}h `;
+  if (minutes > 0) result += `${minutes}m `;
+  if (seconds > 0 || result === '') result += `${seconds}s`;
+  
+  return result.trim();
+}
+
+async function getTicketsInDateRange(dateRange: DateRange): Promise<Ticket[]> {
+    if (!dateRange || !dateRange.from) {
+        const ticketsSnap = await getDocs(getTicketsCollectionRef());
+        return ticketsSnap.docs.map(d => d.data() as Ticket);
+    }
+
+    const startDate = startOfDay(dateRange.from);
+    const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+    const intervalDays = eachDayOfInterval({ start: startDate, end: endDate });
+
+    const ticketPromises = intervalDays.map(day => getDocs(getTicketsCollectionRefForDate(day)));
+    const ticketSnapshots = await Promise.all(ticketPromises);
+    
+    const allTickets: Ticket[] = [];
+    ticketSnapshots.forEach(snapshot => {
+        snapshot.forEach(doc => {
+            allTickets.push(doc.data() as Ticket);
+        });
+    });
+
+    return allTickets;
+}
+
+
+export async function getDashboardStats(dateRange: DateRange): Promise<DashboardStats> {
   const settings = await getSettings();
+  const allTicketsForPeriod = await getTicketsInDateRange(dateRange);
+
+  // --- Calculations for the filtered period ---
+  const calledTicketsForPeriod = allTicketsForPeriod.filter(t => t.called && t.calledAt);
   
-  let allTickets: Ticket[] = [];
-
-  if (!dateRange || !dateRange.from) {
-      const ticketsSnap = await getDocs(getTicketsCollectionRef());
-      allTickets = ticketsSnap.docs.map(d => d.data() as Ticket);
-  } else {
-      const startDate = startOfDay(dateRange.from);
-      const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-      
-      const intervalDays = eachDayOfInterval({ start: startDate, end: endDate });
-      
-      const ticketPromises = intervalDays.map(day => {
-          const ticketsColRef = getTicketsCollectionRefForDate(day);
-          return getDocs(ticketsColRef);
-      });
-      
-      const ticketSnapshots = await Promise.all(ticketPromises);
-      
-      ticketSnapshots.forEach(snapshot => {
-          snapshot.forEach(doc => {
-              allTickets.push(doc.data() as Ticket);
-          });
-      });
-  }
-
-
-  const calledTickets = allTickets.filter(t => t.called);
-  const waitingTickets = allTickets.filter(t => !t.called);
-
-  const ticketsByType = settings.buttons.map(button => {
-    const count = allTickets.filter(t => t.type === button.id).length;
-    return {
-      name: button.name,
-      count: count,
-      fill: button.color
-    };
+  let totalServiceSeconds = 0;
+  calledTicketsForPeriod.forEach(t => {
+      totalServiceSeconds += differenceInSeconds(new Date(t.calledAt!), new Date(t.timestamp));
   });
+  const averageServiceTimeInSeconds = calledTicketsForPeriod.length > 0 ? totalServiceSeconds / calledTicketsForPeriod.length : 0;
   
+  const ticketsByType = settings.buttons.map(button => ({
+    name: button.name,
+    count: allTicketsForPeriod.filter(t => t.type === button.id).length,
+    fill: button.color
+  }));
+
   const calledByCounterMap: { [key: number]: number } = {};
-  calledTickets.forEach(ticket => {
+  calledTicketsForPeriod.forEach(ticket => {
     if (ticket.counter) {
         calledByCounterMap[ticket.counter] = (calledByCounterMap[ticket.counter] || 0) + 1;
     }
   });
-
-  const chartColors = [
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-2))',
-    'hsl(var(--chart-3))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-5))',
-  ];
-
+  
+  const chartColors = ['#2980B9', '#27AE60', '#F39C12', '#C0392B', '#8E44AD'];
   const ticketsByCounter = Object.entries(calledByCounterMap)
     .map(([counter, count], index) => ({
         counter: `Guichê ${counter}`,
@@ -361,11 +370,27 @@ export async function getDashboardStats(dateRange?: DateRange): Promise<Dashboar
     }))
     .sort((a,b) => a.counter.localeCompare(b.counter));
 
+  // --- Calculations for "now" (estimated wait time) ---
+  const todaysTicketsSnap = await getDocs(getTicketsCollectionRefForDate(new Date()));
+  const todaysTickets = todaysTicketsSnap.docs.map(d => d.data() as Ticket);
+
+  const todaysCalledTickets = todaysTickets.filter(t => t.called && t.calledAt);
+  const todaysWaitingTickets = todaysTickets.filter(t => !t.called);
+
+  let totalServiceSecondsToday = 0;
+  todaysCalledTickets.forEach(t => {
+      totalServiceSecondsToday += differenceInSeconds(new Date(t.calledAt!), new Date(t.timestamp));
+  });
+  const averageServiceTimeToday = todaysCalledTickets.length > 0 ? totalServiceSecondsToday / todaysCalledTickets.length : 0;
+  const estimatedWaitSeconds = averageServiceTimeToday * todaysWaitingTickets.length;
+
 
   return {
-    totalIssued: allTickets.length,
-    totalCalled: calledTickets.length,
-    waitingCount: waitingTickets.length,
+    totalIssued: allTicketsForPeriod.length,
+    totalCalled: calledTicketsForPeriod.length,
+    waitingCount: todaysWaitingTickets.length, // This should always reflect the current queue
+    averageServiceTime: formatDuration(averageServiceTimeInSeconds),
+    estimatedWaitTime: formatDuration(estimatedWaitSeconds),
     ticketsByType,
     ticketsByCounter,
   };
@@ -378,12 +403,10 @@ export async function resetQueue(): Promise<void> {
     
     const batch = writeBatch(firestore);
 
-    // Delete all ticket subcollection documents
     ticketsSnap.forEach(doc => {
         batch.delete(doc.ref);
     });
 
-    // Reset the daily queue document itself
     const settings = await getSettings();
     
     const getStartNumber = (btn: any) => {
@@ -406,7 +429,6 @@ export async function resetSequenceCounters(): Promise<void> {
     const todayDocSnap = await getDoc(todayDocRef);
 
     if (!todayDocSnap.exists()) {
-        // If the day hasn't started, there's nothing to reset.
         return;
     }
 

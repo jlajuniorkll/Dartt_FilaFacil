@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { DashboardStats } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
-import { Ticket, PhoneOutgoing, Clock, Loader2, Printer } from 'lucide-react';
+import { Ticket, PhoneOutgoing, Clock, Loader2, Printer, Hourglass, Timer } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { UserOptions } from 'jspdf-autotable';
 
-// Adicione esta interface para estender as opções do autoTable com uma propriedade cursor
 interface AutoTableUserOptions extends UserOptions {
   cursor?: { y: number };
 }
@@ -37,36 +36,34 @@ export default function DashboardClient({
     const doc = new jsPDF();
     const formatDate = (date: Date | undefined) => date ? date.toLocaleDateString('pt-BR') : 'N/A';
     
-    // Título Principal do Relatório
     const reportTitle = `Relatório Fila Fácil - Período: ${formatDate(dateRange?.from)} a ${formatDate(dateRange?.to)}`;
     doc.setFontSize(18);
     doc.text(reportTitle, 14, 22);
 
-    // Primeira Tabela: Métricas Gerais
     autoTable(doc, {
       startY: 30,
       head: [['Métrica', 'Valor']],
       body: [
         ['Senhas Emitidas', String(initialStats.totalIssued)],
         ['Senhas Chamadas', String(initialStats.totalCalled)],
-        ['Aguardando na Fila (no fim do período)', String(initialStats.waitingCount)],
+        ['Aguardando na Fila (agora)', String(initialStats.waitingCount)],
+        ['Tempo Médio de Atendimento (período)', initialStats.averageServiceTime],
+        ['Tempo de Espera Estimado (agora)', initialStats.estimatedWaitTime],
       ],
       theme: 'grid'
     });
 
-    // Função auxiliar para adicionar tabelas com título
     const addTitledTable = (title: string, options: AutoTableUserOptions) => {
       const lastTable = (doc as any).lastAutoTable;
-      const startY = lastTable.finalY + 15; // Adiciona um espaçamento de 15px
+      const startY = lastTable.finalY + 15;
 
       doc.setFontSize(14);
       doc.text(title, 14, startY);
 
-      options.startY = startY + 6; // Posição inicial da tabela abaixo do título
+      options.startY = startY + 6; 
       autoTable(doc, options);
     };
 
-    // Tabela: Distribuição por Tipo
     if (initialStats.ticketsByType.length > 0) {
       addTitledTable('Distribuição de Senhas por Tipo', {
         head: [['Tipo de Senha', 'Quantidade Emitida']],
@@ -75,7 +72,6 @@ export default function DashboardClient({
       });
     }
 
-    // Tabela: Chamadas por Guichê
     if (initialStats.ticketsByCounter.length > 0) {
       addTitledTable('Senhas Chamadas por Guichê', {
         head: [['Guichê', 'Quantidade Chamada']],
@@ -104,8 +100,7 @@ export default function DashboardClient({
             </div>
         </div>
         
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Senhas Emitidas</CardTitle>
@@ -133,9 +128,26 @@ export default function DashboardClient({
               <div className="text-2xl font-bold">{initialStats.waitingCount}</div>
             </CardContent>
           </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">T.M. de Atendimento</CardTitle>
+              <Timer className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{initialStats.averageServiceTime}</div>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">T. de Espera Estimado</CardTitle>
+              <Hourglass className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{initialStats.estimatedWaitTime}</div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Charts */}
         <div className="mt-8 flex flex-col gap-8">
           <Card>
             <CardHeader>

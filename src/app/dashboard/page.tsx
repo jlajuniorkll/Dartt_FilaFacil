@@ -8,7 +8,7 @@ import { getDashboardStats } from '@/lib/data';
 import type { DashboardStats } from '@/lib/types';
 import Header from '@/components/Header';
 import { Loader2 } from 'lucide-react';
-import { subDays } from 'date-fns';
+import { subDays, startOfDay } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import DashboardClient from './dashboard-client';
 
@@ -20,10 +20,14 @@ export default function DashboardPage() {
   const [dataLoading, setDataLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const fetchStats = React.useCallback(async (dateRange?: DateRange) => {
+  const fetchStats = React.useCallback(async (dateRange: DateRange) => {
     setDataLoading(true);
     setError(null);
     try {
+      // Ensure dateRange has a 'from' property
+      if (!dateRange.from) {
+        throw new Error("Date range must have a start date.");
+      }
       const statsData = await getDashboardStats(dateRange);
       setStats(statsData);
     } catch (err) {
@@ -41,14 +45,18 @@ export default function DashboardPage() {
       } else if (role !== 'admin') {
         router.replace('/home');
       } else {
-         // Initial fetch for the default date range
-        fetchStats({ from: subDays(new Date(), 7), to: new Date() });
+        const defaultDateRange = { from: startOfDay(subDays(new Date(), 7)), to: new Date() };
+        fetchStats(defaultDateRange);
       }
     }
   }, [user, role, authLoading, router, fetchStats]);
 
   const handleFilter = (range: DateRange) => {
-    fetchStats(range);
+    if(range.from){
+       fetchStats(range);
+    } else {
+        setError("Por favor, selecione uma data de início.");
+    }
   };
   
   if (authLoading || !user || role !== 'admin') {

@@ -45,6 +45,8 @@ export interface DashboardStats {
   totalIssued: number;
   totalCalled: number;
   waitingCount: number;
+  averageServiceTime: string; // Ex: "5m 30s"
+  estimatedWaitTime: string; // Ex: "1h 15m"
   ticketsByType: { name: string; count: number; fill: string; }[];
   ticketsByCounter: { counter: string; count: number; fill: string; }[];
 }
