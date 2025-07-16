@@ -85,17 +85,22 @@ h1, h2, h3, h4, h5, h6 {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  header, .noprint {
+  header, footer, .not-printable {
     display: none !important;
   }
   main {
     padding: 0 !important;
+    margin: 0 !important;
   }
-  .printable {
-    display: block;
+  .printable-area {
+    display: block !important;
+  }
+  @page {
+    size: 80mm 150mm; /* Example size for thermal printers */
     margin: 0;
-    padding: 0;
-    box-shadow: none !important;
-    border: none !important;
   }
+}
+
+.printable-area {
+    display: none;
 }
