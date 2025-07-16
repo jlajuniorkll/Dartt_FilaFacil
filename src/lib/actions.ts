@@ -63,3 +63,13 @@ export async function resetQueue() {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
 }
+
+export async function resetSequenceCounters() {
+    try {
+        await data.resetSequenceCounters();
+        revalidatePath('/settings', 'page');
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}

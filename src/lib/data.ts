@@ -2,7 +2,7 @@
 'use server';
 import type { AppSettings, Ticket, DashboardStats, DailyQueue, ButtonConfig } from './types';
 import { firestore } from './firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 
 
@@ -341,4 +341,25 @@ export async function resetQueue(): Promise<void> {
     batch.set(todayDocRef, newQueue);
 
     await batch.commit();
+}
+
+export async function resetSequenceCounters(): Promise<void> {
+    const todayDocRef = getTodayDocRef();
+    const todayDocSnap = await getDoc(todayDocRef);
+
+    if (!todayDocSnap.exists()) {
+        // If the day hasn't started, there's nothing to reset.
+        return;
+    }
+
+    const settings = await getSettings();
+    const getStartNumber = (btn: ButtonConfig) => {
+        return btn.automaticNumbering ? 0 : (btn.startNumber || 1) - 1;
+    };
+    
+    const initialSequenceCounters = Object.fromEntries(settings.buttons.map(b => [b.id, getStartNumber(b)]));
+
+    await updateDoc(todayDocRef, {
+        sequenceCounters: initialSequenceCounters,
+    });
 }

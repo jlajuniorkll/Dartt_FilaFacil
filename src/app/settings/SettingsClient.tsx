@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { updateSettings, resetQueue } from '@/lib/actions';
+import { updateSettings, resetQueue, resetSequenceCounters } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,7 +53,8 @@ type SettingsFormValues = z.infer<typeof settingsSchema>;
 export default function SettingsClient({ initialSettings, onSettingsChange }: { initialSettings: AppSettings, onSettingsChange: () => void }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [isResetting, setIsResetting] = useState(false);
+  const [isResettingQueue, setIsResettingQueue] = useState(false);
+  const [isResettingSequence, setIsResettingSequence] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -113,7 +114,7 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
   };
   
   const handleResetQueue = () => {
-    setIsResetting(true);
+    setIsResettingQueue(true);
     startTransition(async () => {
        const result = await resetQueue();
         if (result.success) {
@@ -129,7 +130,28 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
                 variant: 'destructive',
             });
         }
-        setIsResetting(false);
+        setIsResettingQueue(false);
+    });
+  }
+
+  const handleResetSequence = () => {
+    setIsResettingSequence(true);
+    startTransition(async () => {
+       const result = await resetSequenceCounters();
+        if (result.success) {
+            toast({
+                title: 'Sequência Reiniciada!',
+                description: 'A numeração para as próximas senhas foi reiniciada.',
+            });
+            onSettingsChange();
+        } else {
+            toast({
+                title: 'Erro ao Reiniciar Sequência',
+                description: result.error || 'Não foi possível zerar a sequência de numeração.',
+                variant: 'destructive',
+            });
+        }
+        setIsResettingSequence(false);
     });
   }
 
@@ -311,17 +333,17 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
         <CardTitle className="text-destructive font-headline">Zona de Perigo</CardTitle>
         <CardDescription>Ações nesta seção são permanentes e não podem ser desfeitas.</CardDescription>
       </CardHeader>
-      <CardContent>
-         <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
             <div className="space-y-1">
                 <h4 className="font-semibold">Zerar a Fila</h4>
                 <p className="text-sm text-muted-foreground">Isso removerá todas as senhas emitidas e chamadas <span className="font-bold">hoje</span>. A contagem será reiniciada.</p>
             </div>
              <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isResetting}>
+                <Button variant="destructive" disabled={isResettingQueue}>
                     <AlertTriangle className="mr-2 h-4 w-4" />
-                    {isResetting ? 'Zerando...' : 'Zerar Fila Atual'}
+                    {isResettingQueue ? 'Zerando...' : 'Zerar Fila Atual'}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -333,8 +355,37 @@ export default function SettingsClient({ initialSettings, onSettingsChange }: { 
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetQueue} disabled={isResetting}>
+                  <AlertDialogAction onClick={handleResetQueue} disabled={isResettingQueue}>
                     Sim, zerar a fila
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+         </div>
+
+         <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+            <div className="space-y-1">
+                <h4 className="font-semibold">Zerar Sequência de Numeração</h4>
+                <p className="text-sm text-muted-foreground">Isso reiniciará os contadores para as <span className="font-bold">próximas</span> senhas, sem apagar as já geradas.</p>
+            </div>
+             <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isResettingSequence}>
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    {isResettingSequence ? 'Zerando...' : 'Zerar Sequências'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A numeração para os próximos tickets de cada tipo será reiniciada (para 1 ou para o número inicial configurado). As senhas já na fila não serão afetadas.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetSequence} disabled={isResettingSequence}>
+                    Sim, zerar sequências
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
