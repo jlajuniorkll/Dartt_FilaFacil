@@ -46,4 +46,5 @@ export interface DashboardStats {
   totalCalled: number;
   waitingCount: number;
   ticketsByType: { name: string; count: number; fill: string; }[];
+  ticketsByCounter: { counter: string; count: number; fill: string; }[];
 }

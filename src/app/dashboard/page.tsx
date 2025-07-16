@@ -50,8 +50,8 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
           </Card>
         </div>
 
-        {/* Chart */}
-        <div className="mt-8">
+        {/* Charts */}
+        <div className="mt-8 grid gap-8 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Distribuição de Senhas por Tipo</CardTitle>
@@ -70,7 +70,32 @@ function DashboardPageContent({ initialStats }: { initialStats: DashboardStats }
                        }}
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Total Emitido" />
+                    <Bar dataKey="count" name="Total Emitido" fill="var(--color-fill)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+           <Card>
+            <CardHeader>
+              <CardTitle>Senhas Chamadas por Guichê</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[400px] w-full">
+                 <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={initialStats.ticketsByCounter} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="counter" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip
+                       contentStyle={{
+                          backgroundColor: 'hsl(var(--background))',
+                          borderColor: 'hsl(var(--border))',
+                       }}
+                    />
+                    <Legend />
+                    <Bar dataKey="count" name="Total Chamado" fill="var(--color-fill)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

@@ -315,15 +315,32 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     return {
       name: button.name,
       count: count,
-      fill: button.color
+      fill: `var(--chart-${(settings.buttons.indexOf(button) % 5) + 1})`
     };
   });
+  
+  const calledByCounterMap: { [key: number]: number } = {};
+  calledToday.forEach(ticket => {
+    if (ticket.counter) {
+        calledByCounterMap[ticket.counter] = (calledByCounterMap[ticket.counter] || 0) + 1;
+    }
+  });
+
+  const ticketsByCounter = Object.entries(calledByCounterMap)
+    .map(([counter, count]) => ({
+        counter: `Guichê ${counter}`,
+        count,
+        fill: `var(--chart-${(Number(counter) % 5) + 1})`
+    }))
+    .sort((a,b) => a.counter.localeCompare(b.counter));
+
 
   return {
     totalIssued: allTicketsToday.length,
     totalCalled: calledToday.length,
     waitingCount: waiting.length,
     ticketsByType,
+    ticketsByCounter,
   };
 }
 
