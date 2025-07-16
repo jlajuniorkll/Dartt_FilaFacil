@@ -5,7 +5,7 @@ import { firestore } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, runTransaction, writeBatch, deleteDoc, updateDoc, collectionGroup } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { DateRange } from 'react-day-picker';
-import { format, startOfDay, endOfDay, eachDayOfInterval, differenceInSeconds } from 'date-fns';
+import { format, startOfDay, endOfDay, eachDayOfInterval, differenceInSeconds, addDays } from 'date-fns';
 
 // --- Firestore Document References ---
 const settingsDocRef = doc(firestore, 'app/settings');
@@ -115,6 +115,8 @@ export async function generateTicket(buttonId: string): Promise<Ticket> {
     let currentSequence = sequenceCounters[buttonId] ?? getInitialSequenceValue(button);
     
     if (!button.automaticNumbering && button.startNumber) {
+        // If the current sequence is less than the desired manual start number, reset it.
+        // This handles the case where it was automatic before and now it's manual.
         if (currentSequence < (button.startNumber - 1)) {
             currentSequence = button.startNumber - 1;
         }
@@ -318,10 +320,21 @@ async function getTicketsInDateRange(dateRange: DateRange): Promise<Ticket[]> {
     }
 
     const startDate = startOfDay(dateRange.from);
-    const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+    const endDate = dateRange.to ? endOfDay(dateRange.to) : startDate;
+
+    if (startDate > endDate) {
+        return [];
+    }
+    
     const intervalDays = eachDayOfInterval({ start: startDate, end: endDate });
 
-    const ticketPromises = intervalDays.map(day => getDocs(getTicketsCollectionRefForDate(day)));
+    const ticketPromises = intervalDays.map(day => {
+        const dateString = day.toISOString().split('T')[0];
+        const dailyDocRef = doc(firestore, `dailyQueues/${dateString}`);
+        const ticketsCollectionRef = collection(dailyDocRef, 'tickets');
+        return getDocs(ticketsCollectionRef);
+    });
+    
     const ticketSnapshots = await Promise.all(ticketPromises);
     
     const allTickets: Ticket[] = [];
@@ -361,7 +374,8 @@ export async function getDashboardStats(dateRange: DateRange): Promise<Dashboard
     }
   });
   
-  const chartColors = ['#2980B9', '#27AE60', '#F39C12', '#C0392B', '#8E44AD'];
+  const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
   const ticketsByCounter = Object.entries(calledByCounterMap)
     .map(([counter, count], index) => ({
         counter: `Guichê ${counter}`,
@@ -371,11 +385,13 @@ export async function getDashboardStats(dateRange: DateRange): Promise<Dashboard
     .sort((a,b) => a.counter.localeCompare(b.counter));
 
   // --- Calculations for "now" (estimated wait time) ---
-  const todaysTicketsSnap = await getDocs(getTicketsCollectionRefForDate(new Date()));
-  const todaysTickets = todaysTicketsSnap.docs.map(d => d.data() as Ticket);
+  const todaysWaitingTickets = await getPendingTickets();
+  
+  const todaysTicketsCollectionRef = getTicketsCollectionRefForDate(new Date());
+  const todaysCalledQuery = query(todaysTicketsCollectionRef, where("called", "==", true));
+  const todaysCalledTicketsSnap = await getDocs(todaysCalledQuery);
+  const todaysCalledTickets = todaysCalledTicketsSnap.docs.map(d => d.data() as Ticket);
 
-  const todaysCalledTickets = todaysTickets.filter(t => t.called && t.calledAt);
-  const todaysWaitingTickets = todaysTickets.filter(t => !t.called);
 
   let totalServiceSecondsToday = 0;
   todaysCalledTickets.forEach(t => {
@@ -443,3 +459,4 @@ export async function resetSequenceCounters(): Promise<void> {
         sequenceCounters: initialSequenceCounters,
     });
 }
+
