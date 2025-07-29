@@ -15,6 +15,7 @@ interface QueueStatus {
 
 export default function DisplayClient({ initialStatus }: { initialStatus: QueueStatus }) {
   const [status, setStatus] = useState<QueueStatus>(initialStatus);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
   const notificationAudioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
   const lastCalledTimestamp = useRef<string | null>(initialStatus.lastCalled?.calledAt ?? null);
@@ -22,7 +23,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
   useEffect(() => {
     const playSoundSequence = async (ticket: Ticket) => {
-      if (isProcessingAudio.current) return;
+      if (isProcessingAudio.current || !audioUnlocked) return;
       isProcessingAudio.current = true;
       
       try {
@@ -40,42 +41,56 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           textForSpeech += ` no guichê ${ticket.counter}`;
         }
         
-        // Start fetching TTS audio in parallel
         const ttsPromise = textToSpeech(textForSpeech);
-
-        // Define a function to play TTS, to be called later
-        const playTTS = async () => {
+        
+        const playNotification = async () => {
           try {
-            const ttsResult = await ttsPromise; // Wait for the download to complete
-            if (ttsResult.media) {
-              ttsAudio.src = ttsResult.media;
-              await ttsAudio.play();
-            }
-          } catch (ttsError) {
-             console.error("Error playing TTS audio:", ttsError);
+             await notificationAudio.play();
+          } catch(e) {
+             console.error("Notification sound failed to play", e);
+             // If notification fails, we still want to try to play TTS.
+             // We resolve the promise so the chain can continue.
+             return Promise.resolve();
           }
         };
 
-        // When the notification sound ends, play the TTS
-        notificationAudio.onended = playTTS;
+        notificationAudio.onended = async () => {
+            try {
+                const ttsResult = await ttsPromise;
+                if(ttsResult.media) {
+                    ttsAudio.src = ttsResult.media;
+                    await ttsAudio.play();
+                }
+            } catch (ttsError) {
+                console.error("Error playing TTS audio:", ttsError);
+                 isProcessingAudio.current = false;
+            }
+        };
         
-        // When the TTS audio ends, release the lock
         ttsAudio.onended = () => {
             isProcessingAudio.current = false;
         };
         
-        // If notification sound fails to play or doesn't exist, just play TTS and release lock
-        notificationAudio.onerror = (e) => {
-            console.error("Notification sound error:", e);
-            playTTS(); // Try to play TTS anyway
-        };
+        // If notification fails, at least try to play TTS after a short delay
+        notificationAudio.onerror = async () => {
+             console.error("Notification sound error, trying TTS directly.");
+             try {
+                const ttsResult = await ttsPromise;
+                if(ttsResult.media) {
+                    ttsAudio.src = ttsResult.media;
+                    await ttsAudio.play();
+                }
+            } catch (ttsError) {
+                console.error("Error playing TTS audio after notification failure:", ttsError);
+                isProcessingAudio.current = false;
+            }
+        }
         
-        // Play the notification sound
-        await notificationAudio.play();
+        await playNotification();
 
       } catch (error) {
         console.error("Error in audio playback sequence:", error);
-        isProcessingAudio.current = false; // Release lock on error
+        isProcessingAudio.current = false;
       }
     };
 
@@ -87,7 +102,6 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           
           const hasNewCall = newStatus.lastCalled && newStatus.lastCalled.calledAt && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current;
 
-          // Update status first to keep UI responsive
           setStatus(newStatus);
           
           if (hasNewCall) {
@@ -102,28 +116,43 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
     const intervalId = setInterval(fetchStatus, 3000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [audioUnlocked]);
   
   const handleInitialInteraction = () => {
+    if (audioUnlocked) return;
+    
     // This is required by browsers to allow autoplaying audio.
     const notification = notificationAudioRef.current;
-    if (notification && notification.paused) {
-        notification.play().catch(() => {});
-        notification.pause();
-        notification.currentTime = 0;
+    if (notification) {
+        notification.muted = true;
+        notification.play().then(() => {
+            notification.pause();
+            notification.currentTime = 0;
+            notification.muted = false;
+        }).catch(() => {});
     }
     const tts = ttsAudioRef.current;
-    if(tts && tts.paused) {
-        tts.play().catch(() => {});
-        tts.pause();
+    if(tts) {
+        tts.muted = true;
+        tts.play().then(() => {
+            tts.pause();
+            tts.muted = false;
+        }).catch(() => {});
     }
+    setAudioUnlocked(true);
   };
 
 
   const lastCalled = status.lastCalled;
 
   return (
-    <div className="flex h-screen w-screen bg-background overflow-hidden" onClick={handleInitialInteraction}>
+    <div className="flex h-screen w-screen bg-background overflow-hidden relative" onClick={handleInitialInteraction}>
+      {!audioUnlocked && (
+        <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <p className="text-white text-2xl font-bold animate-pulse">Toque na tela para ativar o som</p>
+        </div>
+      )}
+
       <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto"></audio>
       <audio ref={ttsAudioRef} preload="auto"></audio>
       
