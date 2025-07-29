@@ -86,38 +86,23 @@ h1, h2, h3, h4, h5, h6 {
 
 @media print {
   @page {
-    size: 60mm auto;
-    margin: 0mm;
-  }
-  
-  html, body {
-    width: 60mm;
-    height: auto;
+    size: 60mm auto; 
     margin: 0;
-    padding: 0;
   }
-  
   body * {
     display: none;
-    visibility: hidden;
   }
-  
-  .printable-area {
-    display: block !important;
-    visibility: visible;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 60mm;
-    height: auto;
-  }
-
-  .printable-area * {
-    display: block; /* Or inline, etc., as appropriate */
+  .printable-area, .printable-area * {
+    display: block;
     visibility: visible;
     color-adjust: exact !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    box-sizing: border-box;
+  }
+  .printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
   }
 }
