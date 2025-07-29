@@ -12,6 +12,18 @@ interface QueueStatus {
   videos: string[];
 }
 
+// Helper function to create a Promise that resolves when an audio element ends
+const awaitAudioEnd = (audioElement: HTMLAudioElement): Promise<void> => {
+    return new Promise(resolve => {
+        const onEnded = () => {
+            audioElement.removeEventListener('ended', onEnded);
+            resolve();
+        };
+        audioElement.addEventListener('ended', onEnded);
+    });
+};
+
+
 export default function DisplayClient({ initialStatus }: { initialStatus: QueueStatus }) {
   const [status, setStatus] = useState<QueueStatus>(initialStatus);
   const notificationAudioRef = useRef<HTMLAudioElement>(null);
@@ -25,44 +37,35 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
       isProcessingAudio.current = true;
 
       try {
+        const notificationAudio = notificationAudioRef.current;
+        const ttsAudio = ttsAudioRef.current;
+        
+        // 1. Generate the speech audio in the background
         let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
         if (ticket.counter) {
           textForSpeech += ` no guichê ${ticket.counter}`;
         }
-        
         const ttsPromise = textToSpeech(textForSpeech);
-
-        const notificationAudio = notificationAudioRef.current;
-        if (notificationAudio) {
-            notificationAudio.currentTime = 0;
-            // Browsers require user interaction to play audio. Muting it for the first play is a workaround.
-            // After the first "programmatic" play, subsequent plays should work with sound.
-            if(notificationAudio.muted) {
-                notificationAudio.muted = false;
-            }
-            const playPromise = notificationAudio.play();
-            if(playPromise !== undefined) {
-               await playPromise.catch(e => console.error("Error playing notification sound:", e));
-            }
-            // Wait for notification to finish
-            await new Promise(resolve => {
-                const onEnded = () => {
-                    notificationAudio.removeEventListener('ended', onEnded);
-                    resolve(null);
-                };
-                notificationAudio.addEventListener('ended', onEnded);
-            });
+        
+        // 2. Play the notification sound
+        if (notificationAudio && notificationAudio.src) {
+           try {
+              await notificationAudio.play();
+              await awaitAudioEnd(notificationAudio); // Wait for it to finish
+           } catch(e) {
+             console.error("Error playing notification sound. It might require user interaction.", e);
+           }
         }
         
+        // 3. Play the TTS audio
         const { media } = await ttsPromise;
-
-        const ttsAudio = ttsAudioRef.current;
         if (media && ttsAudio) {
             ttsAudio.src = media;
             await ttsAudio.play().catch(e => console.error("Error playing TTS sound:", e));
         }
+
       } catch (error) {
-        console.error("Error with audio playback:", error);
+        console.error("Error with audio playback flow:", error);
       } finally {
         isProcessingAudio.current = false;
       }
@@ -91,11 +94,17 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   
   // A simple interaction to allow audio to play automatically.
   const handleInitialInteraction = () => {
-    if (notificationAudioRef.current && notificationAudioRef.current.muted) {
-      notificationAudioRef.current.muted = false;
-      // Play and immediately pause to "activate" the audio element.
-      notificationAudioRef.current.play().catch(()=>{});
-      notificationAudioRef.current.pause();
+    // This function attempts to "unlock" the audio elements for autoplay.
+    // It's called on the first click/tap on the screen.
+    const notification = notificationAudioRef.current;
+    if (notification && notification.paused) {
+        notification.play().catch(() => {});
+        notification.pause();
+    }
+    const tts = ttsAudioRef.current;
+    if(tts && tts.paused) {
+        tts.play().catch(() => {});
+        tts.pause();
     }
   };
 
@@ -104,7 +113,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
   return (
     <div className="flex h-screen w-screen bg-background overflow-hidden" onClick={handleInitialInteraction}>
-      <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto" muted></audio>
+      <audio ref={notificationAudioRef} src="/notification.mp3" preload="auto"></audio>
       <audio ref={ttsAudioRef} preload="auto"></audio>
       
       <aside className="w-[30%] h-full bg-card p-6 flex flex-col">
