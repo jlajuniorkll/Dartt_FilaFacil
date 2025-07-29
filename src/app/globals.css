@@ -85,36 +85,38 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media print {
+  @page {
+    size: 60mm auto; /* Definir o tamanho do papel da impressora térmica */
+    margin: 0;
+  }
+
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    margin: 0;
+    padding: 0;
   }
 
-  /* Hide everything on screen */
-  body * {
-    visibility: hidden;
-  }
-  
+  /* Ocultar tudo, exceto a área imprimível */
   .not-printable {
     display: none !important;
   }
+  
+  body * {
+    visibility: hidden;
+  }
 
-  /* Show only the printable area and its contents */
   .printable-area, .printable-area * {
     visibility: visible;
   }
 
-  /* Position the printable area to take up the whole page */
+  /* Posicionar a área imprimível no canto superior esquerdo para preencher a página */
   .printable-area {
     display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-  }
-  
-  @page {
-    size: 60mm auto; /* Example size for thermal printers */
-    margin: 0;
+    height: 100%;
   }
 }
