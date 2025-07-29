@@ -22,7 +22,7 @@ function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
   return (
     <div className="p-2 text-black bg-white" style={{ fontFamily: 'monospace', width: '80mm' }}>
       <div className="text-center">
-        <h1 className="text-lg font-bold">Fila Fácil</h1>
+        <h1 className="text-lg font-bold">PROCON</h1>
         <p className="text-xs">--------------------------------</p>
         <p className="text-sm my-2">Sua Senha:</p>
         <p className="text-5xl font-bold tracking-widest my-4">{ticket.ticketNumber}</p>

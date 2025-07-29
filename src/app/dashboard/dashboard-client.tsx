@@ -36,7 +36,7 @@ export default function DashboardClient({
     const doc = new jsPDF();
     const formatDate = (date: Date | undefined) => date ? date.toLocaleDateString('pt-BR') : 'N/A';
     
-    const reportTitle = `Relatório Fila Fácil - Período: ${formatDate(dateRange?.from)} a ${formatDate(dateRange?.to)}`;
+    const reportTitle = `Relatório PROCON - Período: ${formatDate(dateRange?.from)} a ${formatDate(dateRange?.to)}`;
     doc.setFontSize(18);
     doc.text(reportTitle, 14, 22);
 
@@ -80,7 +80,7 @@ export default function DashboardClient({
       });
     }
     
-    doc.save(`relatorio_fila_facil_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`relatorio_procon_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (

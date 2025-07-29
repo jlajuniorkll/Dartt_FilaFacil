@@ -22,7 +22,7 @@ export default function Header() {
         <Link href="/home" className="flex items-center space-x-2 mr-auto">
           <Ticket className="h-6 w-6 text-primary" />
           <span className="font-bold font-headline sm:inline-block">
-            Fila Fácil
+            PROCON
           </span>
         </Link>
         {!loading && user && (

@@ -79,7 +79,7 @@ export default function HomePage() {
       <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-12">
           <h1 className="text-4xl font-bold font-headline tracking-tight text-gray-800 sm:text-5xl">
-            Bem-vindo ao Fila Fácil
+            Bem-vindo ao PROCON
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
             Sua solução completa para gerenciamento de filas.

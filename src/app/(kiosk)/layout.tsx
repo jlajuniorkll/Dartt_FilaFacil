@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Fila Fácil - Kiosk',
+  title: 'PROCON - Kiosk',
   description: 'Sistema de Gerenciamento de Filas',
 };
 

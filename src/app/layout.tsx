@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/lib/auth/auth-context';
 
 export const metadata: Metadata = {
-  title: 'Fila Fácil',
+  title: 'PROCON',
   description: 'Sistema de Gerenciamento de Filas',
 };
 
