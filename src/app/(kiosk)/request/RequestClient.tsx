@@ -20,20 +20,19 @@ import ReactDOMServer from 'react-dom/server';
 function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
   if (!ticket) return null;
 
-  // This component is now only for rendering to a string
+  // This component renders clean HTML without inline styles.
+  // All styling is applied in the iframe's <style> tag.
   return (
-    <div style={{ fontFamily: 'monospace', width: '58mm', boxSizing: 'border-box', padding: '2px', color: '#000' }}>
-      <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '4px 0' }}>PROCON</h1>
-        <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>--------------------------------</p>
-        <p style={{ fontSize: '1rem', margin: '8px 0' }}>Sua Senha:</p>
-        <p style={{ fontSize: '2.5rem', fontWeight: 'bold', letterSpacing: '0.1em', margin: '8px 0' }}>{ticket.ticketNumber}</p>
-        <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>--------------------------------</p>
-        <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>
-          Emitido em: {new Date(ticket.timestamp).toLocaleDateString('pt-BR')} às {new Date(ticket.timestamp).toLocaleTimeString('pt-BR')}
-        </p>
-        <p style={{ fontSize: '1rem', fontWeight: 'bold', margin: '8px 0 4px 0' }}>Aguarde sua chamada no painel.</p>
-      </div>
+    <div className="ticket">
+      <h1>PROCON</h1>
+      <p className="divider">--------------------------------</p>
+      <p className="label">Sua Senha:</p>
+      <p className="number">{ticket.ticketNumber}</p>
+      <p className="divider">--------------------------------</p>
+      <p className="timestamp">
+        Emitido em: {new Date(ticket.timestamp).toLocaleDateString('pt-BR')} às {new Date(ticket.timestamp).toLocaleTimeString('pt-BR')}
+      </p>
+      <p className="footer-text">Aguarde sua chamada no painel.</p>
     </div>
   );
 }
@@ -89,13 +88,49 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
           <style>
             @page { 
               size: 60mm auto;
-              margin: 0; 
+              margin: 0mm;
             }
             body { 
               margin: 0; 
               padding: 0;
+              color: #000;
+              font-family: monospace;
               -webkit-print-color-adjust: exact !important;
               color-adjust: exact !important;
+            }
+            .ticket {
+                width: 60mm;
+                box-sizing: border-box;
+                padding: 2mm;
+                text-align: center;
+            }
+            .ticket h1 {
+                font-size: 1.1rem;
+                font-weight: bold;
+                margin: 4px 0;
+            }
+            .ticket .divider {
+                font-size: 0.75rem;
+                margin: 4px 0;
+            }
+            .ticket .label {
+                font-size: 1rem;
+                margin: 8px 0;
+            }
+            .ticket .number {
+                font-size: 2.5rem;
+                font-weight: bold;
+                letter-spacing: 0.1em;
+                margin: 8px 0;
+            }
+            .ticket .timestamp {
+                 font-size: 0.75rem;
+                 margin: 4px 0;
+            }
+            .ticket .footer-text {
+                font-size: 1rem;
+                font-weight: bold;
+                margin: 8px 0 4px 0;
             }
           </style>
         </head>
@@ -122,12 +157,10 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
         }
     };
     
-    // Use a small timeout to let the iframe content render fully before printing.
     setTimeout(tryPrint, 150);
 
   }, [closeModal, toast]);
 
-  // Effect to trigger print when modal opens with a ticket
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
       triggerPrint(generatedTicket);
@@ -181,7 +214,6 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
         </DialogContent>
       </Dialog>
       
-      {/* This iframe is only for printing and is not visible */}
       <iframe
         ref={printIframeRef}
         style={{
