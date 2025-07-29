@@ -22,7 +22,7 @@ function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
 
   // This component is now only for rendering to a string
   return (
-    <div style={{ fontFamily: 'monospace', width: '60mm', boxSizing: 'border-box', padding: '2px', color: '#000' }}>
+    <div style={{ fontFamily: 'monospace', width: '58mm', boxSizing: 'border-box', padding: '2px', color: '#000' }}>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '4px 0' }}>PROCON</h1>
         <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>--------------------------------</p>
