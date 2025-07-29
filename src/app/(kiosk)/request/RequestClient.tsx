@@ -99,7 +99,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
               color-adjust: exact !important;
             }
             .ticket {
-                width: 60mm;
+                width: 58mm;
                 box-sizing: border-box;
                 padding: 2mm;
                 text-align: center;
