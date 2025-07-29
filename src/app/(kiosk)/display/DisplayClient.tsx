@@ -12,18 +12,6 @@ interface QueueStatus {
   videos: string[];
 }
 
-// Helper function to create a Promise that resolves when an audio element ends
-const awaitAudioEnd = (audioElement: HTMLAudioElement): Promise<void> => {
-    return new Promise(resolve => {
-        const onEnded = () => {
-            audioElement.removeEventListener('ended', onEnded);
-            resolve();
-        };
-        audioElement.addEventListener('ended', onEnded);
-    });
-};
-
-
 export default function DisplayClient({ initialStatus }: { initialStatus: QueueStatus }) {
   const [status, setStatus] = useState<QueueStatus>(initialStatus);
   const notificationAudioRef = useRef<HTMLAudioElement>(null);
@@ -32,41 +20,53 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   const isProcessingAudio = useRef(false);
 
   useEffect(() => {
-    const playSounds = async (ticket: Ticket) => {
-      if (isProcessingAudio.current) return;
+    const playSoundSequence = async (ticket: Ticket) => {
+      // Prevent multiple audio sequences from running at the same time
+      if (isProcessingAudio.current) {
+        console.log("Audio is already processing. Skipping.");
+        return;
+      }
       isProcessingAudio.current = true;
 
       try {
         const notificationAudio = notificationAudioRef.current;
         const ttsAudio = ttsAudioRef.current;
+
+        // 1. Play notification sound first
+        if (notificationAudio && notificationAudio.src) {
+          try {
+            await notificationAudio.play();
+            // Wait for the notification sound to end before proceeding
+            await new Promise<void>(resolve => {
+              const onEnded = () => {
+                notificationAudio.removeEventListener('ended', onEnded);
+                resolve();
+              };
+              notificationAudio.addEventListener('ended', onEnded);
+            });
+          } catch (e) {
+            console.error("Error playing notification sound. It might require user interaction.", e);
+            // Don't stop the sequence if the notification fails, TTS is more important
+          }
+        }
         
-        // 1. Generate the speech audio in the background
+        // 2. Generate and play TTS audio
         let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
         if (ticket.counter) {
           textForSpeech += ` no guichê ${ticket.counter}`;
         }
-        const ttsPromise = textToSpeech(textForSpeech);
         
-        // 2. Play the notification sound
-        if (notificationAudio && notificationAudio.src) {
-           try {
-              await notificationAudio.play();
-              await awaitAudioEnd(notificationAudio); // Wait for it to finish
-           } catch(e) {
-             console.error("Error playing notification sound. It might require user interaction.", e);
-           }
-        }
-        
-        // 3. Play the TTS audio
-        const { media } = await ttsPromise;
+        const { media } = await textToSpeech(textForSpeech);
+
         if (media && ttsAudio) {
-            ttsAudio.src = media;
-            await ttsAudio.play().catch(e => console.error("Error playing TTS sound:", e));
+          ttsAudio.src = media;
+          await ttsAudio.play().catch(e => console.error("Error playing TTS sound:", e));
         }
 
       } catch (error) {
-        console.error("Error with audio playback flow:", error);
+        console.error("Error in audio playback sequence:", error);
       } finally {
+        // Release the lock
         isProcessingAudio.current = false;
       }
     };
@@ -80,7 +80,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
           
           if (newStatus.lastCalled && newStatus.lastCalled.calledAt && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current) {
             lastCalledTimestamp.current = newStatus.lastCalled.calledAt;
-            playSounds(newStatus.lastCalled);
+            playSoundSequence(newStatus.lastCalled);
           }
         }
       } catch (error) {
