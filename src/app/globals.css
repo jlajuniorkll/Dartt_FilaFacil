@@ -114,7 +114,7 @@ h1, h2, h3, h4, h5, h6 {
   }
   
   @page {
-    size: 80mm auto; /* Example size for thermal printers */
+    size: 60mm auto; /* Example size for thermal printers */
     margin: 0;
   }
 }

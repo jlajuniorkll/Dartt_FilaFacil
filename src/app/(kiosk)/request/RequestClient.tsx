@@ -20,7 +20,7 @@ function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
   if (!ticket) return null;
 
   return (
-    <div className="p-2 text-black bg-white" style={{ fontFamily: 'monospace', width: '80mm' }}>
+    <div className="p-2 text-black bg-white" style={{ fontFamily: 'monospace', width: '60mm' }}>
       <div className="text-center">
         <h1 className="text-lg font-bold">PROCON</h1>
         <p className="text-xs">--------------------------------</p>
