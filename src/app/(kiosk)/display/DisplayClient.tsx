@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -21,7 +22,6 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
 
   useEffect(() => {
     const playSoundSequence = async (ticket: Ticket) => {
-      // Prevent multiple audio sequences from running at the same time
       if (isProcessingAudio.current) {
         console.log("Audio is already processing. Skipping.");
         return;
@@ -32,41 +32,45 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
         const notificationAudio = notificationAudioRef.current;
         const ttsAudio = ttsAudioRef.current;
 
-        // 1. Play notification sound first
-        if (notificationAudio && notificationAudio.src) {
+        const playTTS = async () => {
           try {
-            await notificationAudio.play();
-            // Wait for the notification sound to end before proceeding
-            await new Promise<void>(resolve => {
-              const onEnded = () => {
-                notificationAudio.removeEventListener('ended', onEnded);
-                resolve();
-              };
-              notificationAudio.addEventListener('ended', onEnded);
-            });
+            let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
+            if (ticket.counter) {
+              textForSpeech += ` no guichê ${ticket.counter}`;
+            }
+            
+            const { media } = await textToSpeech(textForSpeech);
+
+            if (media && ttsAudio) {
+              ttsAudio.src = media;
+              await ttsAudio.play();
+            }
           } catch (e) {
-            console.error("Error playing notification sound. It might require user interaction.", e);
-            // Don't stop the sequence if the notification fails, TTS is more important
+             console.error("Error playing TTS sound:", e);
+          } finally {
+             isProcessingAudio.current = false; // Release lock after TTS
           }
-        }
-        
-        // 2. Generate and play TTS audio
-        let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
-        if (ticket.counter) {
-          textForSpeech += ` no guichê ${ticket.counter}`;
-        }
-        
-        const { media } = await textToSpeech(textForSpeech);
+        };
 
-        if (media && ttsAudio) {
-          ttsAudio.src = media;
-          await ttsAudio.play().catch(e => console.error("Error playing TTS sound:", e));
-        }
+        if (notificationAudio && notificationAudio.src) {
+            const onNotificationEnded = () => {
+              notificationAudio.removeEventListener('ended', onNotificationEnded);
+              playTTS();
+            };
+            notificationAudio.addEventListener('ended', onNotificationEnded);
 
+            try {
+                await notificationAudio.play();
+            } catch (e) {
+                console.error("Error playing notification sound, playing TTS directly.", e);
+                notificationAudio.removeEventListener('ended', onNotificationEnded);
+                await playTTS(); // Play TTS even if notification fails
+            }
+        } else {
+            await playTTS(); // No notification sound, just play TTS
+        }
       } catch (error) {
         console.error("Error in audio playback sequence:", error);
-      } finally {
-        // Release the lock
         isProcessingAudio.current = false;
       }
     };
@@ -76,11 +80,15 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
         const res = await fetch('/api/queue/status');
         if (res.ok) {
           const newStatus: QueueStatus = await res.json();
+          
+          const hasNewCall = newStatus.lastCalled && newStatus.lastCalled.calledAt && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current;
+
+          // Update status first to keep UI responsive
           setStatus(newStatus);
           
-          if (newStatus.lastCalled && newStatus.lastCalled.calledAt && newStatus.lastCalled.calledAt !== lastCalledTimestamp.current) {
-            lastCalledTimestamp.current = newStatus.lastCalled.calledAt;
-            playSoundSequence(newStatus.lastCalled);
+          if (hasNewCall) {
+            lastCalledTimestamp.current = newStatus.lastCalled!.calledAt;
+            playSoundSequence(newStatus.lastCalled!);
           }
         }
       } catch (error) {
@@ -92,14 +100,12 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
     return () => clearInterval(intervalId);
   }, []);
   
-  // A simple interaction to allow audio to play automatically.
   const handleInitialInteraction = () => {
-    // This function attempts to "unlock" the audio elements for autoplay.
-    // It's called on the first click/tap on the screen.
     const notification = notificationAudioRef.current;
     if (notification && notification.paused) {
         notification.play().catch(() => {});
         notification.pause();
+        notification.currentTime = 0;
     }
     const tts = ttsAudioRef.current;
     if(tts && tts.paused) {
@@ -123,7 +129,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
              <AnimatePresence>
                 {status.history.map((ticket, index) => (
                 <motion.li
-                    key={ticket.id}
+                    key={`${ticket.id}-${ticket.calledAt}`}
                     layout
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
