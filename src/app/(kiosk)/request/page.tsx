@@ -17,7 +17,7 @@ export default async function RequestPage() {
         <RequestClient buttons={settings.buttons} />
       </main>
       <footer className="p-4 text-center text-sm text-muted-foreground bg-card flex-shrink-0">
-        PROCON &copy; {new Date().getFullYear()} - v1.0.3
+        PROCON &copy; {new Date().getFullYear()} - v1.0.4
       </footer>
     </div>
   );
