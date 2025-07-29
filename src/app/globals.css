@@ -90,10 +90,9 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0;
   }
   body * {
-    display: none;
+    visibility: hidden;
   }
   .printable-area, .printable-area * {
-    display: block;
     visibility: visible;
     color-adjust: exact !important;
     -webkit-print-color-adjust: exact !important;
@@ -104,5 +103,8 @@ h1, h2, h3, h4, h5, h6 {
     left: 0;
     top: 0;
     width: 100%;
+  }
+  .not-printable {
+    display: none !important;
   }
 }

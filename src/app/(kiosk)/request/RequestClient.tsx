@@ -159,7 +159,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
         </DialogContent>
       </Dialog>
       
-      {/* This area is hidden on screen but visible for printing */}
+      {/* This area is only visible for printing */}
       <div className="printable-area">
         <PrintableTicketContent ticket={generatedTicket} />
       </div>
