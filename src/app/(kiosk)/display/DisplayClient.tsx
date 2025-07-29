@@ -23,7 +23,6 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   useEffect(() => {
     const playSoundSequence = async (ticket: Ticket) => {
       if (isProcessingAudio.current) {
-        console.log("Audio is already processing. Skipping.");
         return;
       }
       isProcessingAudio.current = true;
@@ -31,46 +30,40 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
       try {
         const notificationAudio = notificationAudioRef.current;
         const ttsAudio = ttsAudioRef.current;
-
-        const playTTS = async () => {
-          try {
-            let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
-            if (ticket.counter) {
-              textForSpeech += ` no guichê ${ticket.counter}`;
-            }
-            
-            const { media } = await textToSpeech(textForSpeech);
-
-            if (media && ttsAudio) {
-              ttsAudio.src = media;
-              await ttsAudio.play();
-            }
-          } catch (e) {
-             console.error("Error playing TTS sound:", e);
-          } finally {
-             isProcessingAudio.current = false; // Release lock after TTS
-          }
-        };
-
-        if (notificationAudio && notificationAudio.src) {
-            const onNotificationEnded = () => {
-              notificationAudio.removeEventListener('ended', onNotificationEnded);
-              playTTS();
-            };
-            notificationAudio.addEventListener('ended', onNotificationEnded);
-
-            try {
-                await notificationAudio.play();
-            } catch (e) {
-                console.error("Error playing notification sound, playing TTS directly.", e);
-                notificationAudio.removeEventListener('ended', onNotificationEnded);
-                await playTTS(); // Play TTS even if notification fails
-            }
-        } else {
-            await playTTS(); // No notification sound, just play TTS
+        
+        // Prepare the text for speech
+        let textForSpeech = `${ticket.isRepeat ? 'Repetindo Senha' : 'Senha'} ${ticket.ticketNumber}`;
+        if (ticket.counter) {
+          textForSpeech += ` no guichê ${ticket.counter}`;
         }
+
+        // Start both tasks in parallel
+        const ttsPromise = textToSpeech(textForSpeech);
+        const notificationPromise = new Promise<void>((resolve, reject) => {
+            if (notificationAudio && notificationAudio.src) {
+                notificationAudio.onended = () => resolve();
+                notificationAudio.onerror = (e) => reject(e);
+                notificationAudio.play().catch(e => reject(e));
+            } else {
+                resolve(); // Resolve immediately if no notification sound
+            }
+        });
+
+        // Wait for both to be ready
+        const [ttsResult] = await Promise.all([
+          ttsPromise,
+          notificationPromise
+        ]);
+
+        // Now that notification has finished and TTS is downloaded, play TTS
+        if (ttsResult.media && ttsAudio) {
+            ttsAudio.src = ttsResult.media;
+            await ttsAudio.play();
+        }
+
       } catch (error) {
         console.error("Error in audio playback sequence:", error);
+      } finally {
         isProcessingAudio.current = false;
       }
     };
@@ -101,6 +94,7 @@ export default function DisplayClient({ initialStatus }: { initialStatus: QueueS
   }, []);
   
   const handleInitialInteraction = () => {
+    // This is required by browsers to allow autoplaying audio.
     const notification = notificationAudioRef.current;
     if (notification && notification.paused) {
         notification.play().catch(() => {});
