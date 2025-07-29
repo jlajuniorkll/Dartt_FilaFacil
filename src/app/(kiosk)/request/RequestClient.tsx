@@ -87,7 +87,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
           <title>Printing Ticket</title>
           <style>
             @page { 
-              size: 60mm auto;
+              size: 58mm auto;
               margin: 0mm;
             }
             body { 
@@ -101,7 +101,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
             .ticket {
                 width: 58mm;
                 box-sizing: border-box;
-                padding: 2mm;
+                padding: 0;
                 text-align: center;
             }
             .ticket h1 {
