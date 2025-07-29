@@ -2,7 +2,7 @@
 'use client';
 
 import type { Ticket } from '@/lib/types';
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
 import { generateTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -15,22 +15,24 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Ticket as TicketIcon } from 'lucide-react';
+import ReactDOMServer from 'react-dom/server';
 
 function PrintableTicketContent({ ticket }: { ticket: Ticket | null }) {
   if (!ticket) return null;
 
+  // This component is now only for rendering to a string
   return (
-    <div className="p-2 text-black bg-white" style={{ fontFamily: 'monospace', width: '60mm', boxSizing: 'border-box' }}>
-      <div className="text-center">
-        <h1 className="text-lg font-bold">PROCON</h1>
-        <p className="text-xs">--------------------------------</p>
-        <p className="text-sm my-2">Sua Senha:</p>
-        <p className="text-5xl font-bold tracking-widest my-4">{ticket.ticketNumber}</p>
-        <p className="text-xs">--------------------------------</p>
-        <p className="text-xs">
+    <div style={{ fontFamily: 'monospace', width: '60mm', boxSizing: 'border-box', padding: '2px', color: '#000' }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '4px 0' }}>PROCON</h1>
+        <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>--------------------------------</p>
+        <p style={{ fontSize: '1rem', margin: '8px 0' }}>Sua Senha:</p>
+        <p style={{ fontSize: '2.5rem', fontWeight: 'bold', letterSpacing: '0.1em', margin: '8px 0' }}>{ticket.ticketNumber}</p>
+        <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>--------------------------------</p>
+        <p style={{ fontSize: '0.75rem', margin: '4px 0' }}>
           Emitido em: {new Date(ticket.timestamp).toLocaleDateString('pt-BR')} às {new Date(ticket.timestamp).toLocaleTimeString('pt-BR')}
         </p>
-        <p className="text-sm font-bold mt-4">Aguarde sua chamada no painel.</p>
+        <p style={{ fontSize: '1rem', fontWeight: 'bold', margin: '8px 0 4px 0' }}>Aguarde sua chamada no painel.</p>
       </div>
     </div>
   );
@@ -42,6 +44,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
   const [isPending, startTransition] = useTransition();
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const printIframeRef = useRef<HTMLIFrameElement>(null);
 
   const handleGenerateTicket = (buttonId: string) => {
     startTransition(async () => {
@@ -67,50 +70,69 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
     }, 300);
   }, []);
 
+  const triggerPrint = useCallback((ticket: Ticket) => {
+    const ticketHtml = ReactDOMServer.renderToString(
+      <PrintableTicketContent ticket={ticket} />
+    );
+
+    const iframe = printIframeRef.current;
+    if (!iframe) return;
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) return;
+    
+    iframeDoc.open();
+    iframeDoc.write(`
+      <html>
+        <head>
+          <title>Printing Ticket</title>
+          <style>
+            @page { 
+              size: 60mm auto;
+              margin: 0; 
+            }
+            body { 
+              margin: 0; 
+              padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${ticketHtml}
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+    
+    const tryPrint = () => {
+        try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            closeModal();
+        } catch(e) {
+            console.error("Print failed:", e);
+            toast({
+              title: 'Impressão Falhou',
+              description: 'Não foi possível acionar a impressão. Verifique as configurações do navegador.',
+              variant: 'destructive',
+            });
+            closeModal();
+        }
+    };
+    
+    // Use a small timeout to let the iframe content render fully before printing.
+    setTimeout(tryPrint, 150);
+
+  }, [closeModal, toast]);
+
   // Effect to trigger print when modal opens with a ticket
   useEffect(() => {
     if (isModalOpen && generatedTicket) {
-      // Use a timeout to allow the DOM to update before printing
-      const timer = setTimeout(() => {
-        try {
-          window.print();
-        } catch (e) {
-          console.error("Print failed:", e);
-           toast({
-            title: 'Impressão Falhou',
-            description: 'Não foi possível acionar a impressão. Verifique as permissões do navegador.',
-            variant: 'destructive',
-          });
-        }
-      }, 100); 
-      return () => clearTimeout(timer);
+      triggerPrint(generatedTicket);
     }
-  }, [isModalOpen, generatedTicket, toast]);
-
-  // Effect to handle closing the modal after printing (or cancellation)
-  useEffect(() => {
-    if (!isModalOpen) {
-        return;
-    }
-
-    const handleAfterPrint = () => {
-        closeModal();
-    };
-
-    window.addEventListener('afterprint', handleAfterPrint);
-    
-    // Fallback in case the user cancels the print dialog or the event doesn't fire
-    const fallbackTimeout = setTimeout(() => {
-      if(isModalOpen) {
-          closeModal();
-      }
-    }, 5000); // Close modal after 5 seconds if it's still open
-
-    return () => {
-      window.removeEventListener('afterprint', handleAfterPrint);
-      clearTimeout(fallbackTimeout);
-    };
-  }, [isModalOpen, closeModal]);
+  }, [isModalOpen, generatedTicket, triggerPrint]);
 
 
   return (
@@ -159,10 +181,19 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
         </DialogContent>
       </Dialog>
       
-      {/* This area is only visible for printing */}
-      <div className="printable-area">
-        <PrintableTicketContent ticket={generatedTicket} />
-      </div>
+      {/* This iframe is only for printing and is not visible */}
+      <iframe
+        ref={printIframeRef}
+        style={{
+          position: 'absolute',
+          width: '0',
+          height: '0',
+          border: '0',
+          top: '-9999px',
+          left: '-9999px',
+        }}
+        title="Print"
+      />
     </>
   );
 }

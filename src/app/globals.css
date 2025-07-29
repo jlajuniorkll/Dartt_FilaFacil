@@ -80,28 +80,6 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-.printable-area {
-  display: none;
-}
-
+/* This is intentionally left blank, as the new iframe method handles print styles internally. */
 @media print {
-  @page {
-    size: 60mm auto; 
-    margin: 0;
-  }
-  body * {
-    visibility: hidden;
-  }
-  .printable-area, .printable-area * {
-    visibility: visible;
-    color-adjust: exact !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
 }
