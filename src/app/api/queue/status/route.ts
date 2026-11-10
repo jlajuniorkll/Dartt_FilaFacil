@@ -1,12 +1,10 @@
 import { getQueueStatus } from '@/lib/data';
 import { NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
-        revalidatePath(request.url);
         const status = await getQueueStatus();
         return NextResponse.json(status);
     } catch (error) {

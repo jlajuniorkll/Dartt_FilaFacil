@@ -12,8 +12,7 @@ import { Button } from '@/components/ui/button';
 import { CardContent, CardFooter } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signIn } from '@/lib/auth/actions';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido.'),
@@ -38,26 +37,21 @@ export default function LoginForm() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsPending(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-      router.push('/home');
-    } catch (error: any) {
-      let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
-      const invalidCredentialCodes = [
-        'auth/invalid-credential', 
-        'auth/wrong-password', 
-        'auth/user-not-found',
-        'auth/invalid-email',
-      ];
-      
-      if (invalidCredentialCodes.includes(error.code)) {
-          errorMessage = 'Email ou senha incorretos.';
+      const result = await signIn(data.email, data.password);
+      if (result.success) {
+        router.push('/home');
       } else {
-          console.error("Firebase Auth Error:", error.code, error.message);
+        toast({
+          title: 'Erro de Login',
+          description: result.error ?? 'Email ou senha incorretos.',
+          variant: 'destructive',
+        });
       }
-      
+    } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: 'Erro de Login',
-        description: errorMessage,
+        description: 'Email ou senha incorretos.',
         variant: 'destructive',
       });
     } finally {

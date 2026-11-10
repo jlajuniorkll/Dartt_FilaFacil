@@ -1,13 +1,12 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  output: 'standalone',
+  serverExternalPackages: ['better-sqlite3'],
+  // Build não mascara falhas: TypeScript/ESLint não são ignorados.
+  // (O repositório não instala ESLint — ver docs/arquitetura-sqlite.md, Fase 2F;
+  //  TypeScript roda estrito via `npm run typecheck` e no `next build`.)
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       {
@@ -17,6 +16,22 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+          },
+        ],
+      },
+    ];
   },
 };
 

@@ -48,7 +48,7 @@ export default function RequestClient({ buttons }: { buttons: any[] }) {
   const handleGenerateTicket = (buttonId: string) => {
     startTransition(async () => {
       const result = await generateTicket(buttonId);
-      if (result.success && result.ticket) {
+      if (result.success) {
         setGeneratedTicket(result.ticket);
         setIsModalOpen(true);
       } else {

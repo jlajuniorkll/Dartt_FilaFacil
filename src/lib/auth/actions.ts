@@ -1,57 +1,58 @@
-
 'use server';
 
-import {
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, firestore } from '@/lib/firebase';
-import { cookies } from 'next/headers';
+import { authenticate, revokeSession, AuthError, validateSession } from '@/lib/db/auth-service';
+import { headers } from 'next/headers';
+import { setSessionCookie, clearSessionCookie, getSessionToken } from './session';
+import type { AuthUser } from '@/lib/db/auth-service';
 
-const SESSION_COOKIE_NAME = '__session';
+// Authentication server actions (Fase 2C). Passwords never appear in logs;
+// cookies are HttpOnly/SameSite=Lax/Secure (see session.ts).
 
-export async function getUserRole(uid: string): Promise<'admin' | 'operator' | null> {
+async function requestContext() {
+  const headerStore = await headers();
+  const forwardedFor = headerStore.get('x-forwarded-for');
+  return {
+    ip: forwardedFor ? forwardedFor.split(',')[0].trim() : undefined,
+    userAgent: headerStore.get('user-agent') ?? undefined,
+  };
+}
+
+export async function signIn(email: string, password: string) {
   try {
-    const userDocRef = doc(firestore, 'users', uid);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      return docSnap.data()?.role || null;
+    const context = await requestContext();
+    const result = await authenticate(email, password, context);
+    if (!result) {
+      // Resposta genérica: não revela se o usuário existe ou se está bloqueado.
+      return { success: false, error: 'Email ou senha incorretos.' };
     }
-    return null;
+    await setSessionCookie(result.sessionToken);
+    return { success: true };
   } catch (error) {
-    console.error('Error getting user role:', error);
-    return null;
+    console.error('Falha na autenticação:', error instanceof AuthError ? error.code : error);
+    return { success: false, error: 'Erro interno do servidor.' };
   }
 }
 
 export async function signOut() {
   try {
-    await firebaseSignOut(auth);
-    // While server-side cookies aren't the primary auth method anymore,
-    // it's good practice to clear them on logout.
-    cookies().delete(SESSION_COOKIE_NAME);
+    const token = await getSessionToken();
+    if (token) {
+      revokeSession(token);
+    }
+    await clearSessionCookie();
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error) {
+    console.error('Falha ao encerrar sessão:', error);
+    return { success: false, error: 'Erro interno do servidor.' };
   }
 }
 
-// NOTE: This is a utility function for seeding users, not a standard action
-export async function seedUser(email: string, password: string, role: 'admin' | 'operator') {
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        
-        const userDocRef = doc(firestore, 'users', user.uid);
-        await setDoc(userDocRef, { role });
-
-        return { success: true, uid: user.uid };
-    } catch (error: any) {
-        if(error.code === 'auth/email-already-in-use') {
-            return { success: false, error: 'Email already exists.'}
-        }
-        console.error('Error seeding user:', error);
-        return { success: false, error: error.message };
-    }
+export async function getSessionUser(): Promise<AuthUser | null> {
+  try {
+    const token = await getSessionToken();
+    if (!token) return null;
+    return validateSession(token);
+  } catch {
+    return null;
+  }
 }
