@@ -34,6 +34,8 @@ COPY --from=builder --chown=node:node /app/public ./public
 # CLIs manuais para o operador (criar primeiro admin / resetar senha):
 COPY --from=builder --chown=node:node /app/scripts/create-admin.mjs ./scripts/create-admin.mjs
 COPY --from=builder --chown=node:node /app/scripts/reset-password.mjs ./scripts/reset-password.mjs
+# Healthcheck compatível com Coolify: executado como `node /app/scripts/healthcheck.mjs`
+COPY --from=builder --chown=node:node /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
 
 USER node
 EXPOSE 3000
