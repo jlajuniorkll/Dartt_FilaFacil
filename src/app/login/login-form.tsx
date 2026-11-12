@@ -13,6 +13,7 @@ import { CardContent, CardFooter } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { signIn } from '@/lib/auth/actions';
+import { useAuth } from '@/lib/auth/auth-context';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido.'),
@@ -33,12 +34,14 @@ export default function LoginForm() {
       password: '',
     },
   });
+  const { refreshUser } = useAuth();
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsPending(true);
     try {
       const result = await signIn(data.email, data.password);
       if (result.success) {
+        await refreshUser();
         router.push('/home');
       } else {
         toast({

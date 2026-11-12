@@ -11,6 +11,7 @@ export interface AuthContextType {
   user: AuthUser | null;
   role: UserRole;
   loading: boolean;
+  refreshUser: () => Promise<AuthUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +28,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  const refreshUser = async (): Promise<AuthUser | null> => {
+    try {
+      const sessionUser = await getSessionUser();
+      setUser(sessionUser);
+      setRole(sessionUser?.role ?? null);
+      return sessionUser;
+    } catch {
+      setUser(null);
+      setRole(null);
+      return null;
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -49,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = { user, role, loading: authLoading };
+  const value = { user, role, loading: authLoading, refreshUser };
 
   return (
     <AuthContext.Provider value={value}>
